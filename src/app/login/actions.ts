@@ -3,6 +3,14 @@
 import { setAuthCookie } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { logEvent } from "@/lib/logger";
+import { timingSafeEqual } from "node:crypto";
+
+function timingSafePasswordEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return timingSafeEqual(aBuf, bBuf);
+}
 
 interface LoginState {
   error?: string;
@@ -23,7 +31,7 @@ export async function adminLogin(
     return { error: "خطأ في إعدادات النظام: كلمة مرور المسؤول غير معرفة" };
   }
 
-  if (password !== adminPassword) {
+  if (!timingSafePasswordEqual(password, adminPassword)) {
     return { error: "كلمة المرور غير صحيحة" };
   }
 
@@ -35,5 +43,5 @@ export async function adminLogin(
 export async function teacherLogin(): Promise<never> {
   await setAuthCookie("teacher");
   logEvent("login", { role: "teacher" });
-  redirect("/");
+  redirect("/students");
 }

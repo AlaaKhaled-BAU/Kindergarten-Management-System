@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/app/actions/validation";
+import { requireAuth, requireAdmin } from "@/app/actions/validation";
 import {
   exportRevenuesToExcel,
   exportExpensesToExcel,
@@ -59,7 +59,7 @@ export async function exportExpenses(year?: number) {
 }
 
 export async function exportStudentBalances(grade?: string, year?: string) {
-  await requireAuth();
+  await requireAdmin();
 
   const students = await prisma.student.findMany({
     where: {

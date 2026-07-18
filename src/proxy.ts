@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyRoleCookie } from "@/lib/auth";
 
 export function proxy(request: NextRequest) {
-  const role = request.cookies.get("auth_role")?.value;
+  const role = verifyRoleCookie(request.cookies.get("auth_role")?.value);
   const path = request.nextUrl.pathname;
 
   if (path === "/login") {
@@ -12,12 +13,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!role || (role !== "admin" && role !== "teacher")) {
+  if (!role) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (path.startsWith("/reports") && role !== "admin") {
-    return NextResponse.redirect(new URL("/", request.url));
+  // "/" is the financial KPI dashboard — Admin-only, same as /reports.
+  if ((path === "/" || path.startsWith("/reports")) && role !== "admin") {
+    return NextResponse.redirect(new URL("/students", request.url));
   }
 
   return NextResponse.next();

@@ -21,7 +21,7 @@ import { BackupButton } from "@/components/layout/backup-button";
 import { useState } from "react";
 
 const navigation = [
-  { name: "لوحة القيادة", href: "/", icon: LayoutDashboard, role: "all" },
+  { name: "لوحة القيادة", href: "/", icon: LayoutDashboard, role: "admin" },
   { name: "الطلاب", href: "/students", icon: Users, role: "all" },
   { name: "المدفوعات والإيصالات", href: "/payments", icon: Banknote, role: "all" },
   { name: "الإيرادات", href: "/revenues", icon: TrendingUp, role: "all" },

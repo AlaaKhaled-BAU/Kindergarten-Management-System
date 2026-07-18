@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/app/actions/validation";
+import { requireAdmin } from "@/app/actions/validation";
 
 export interface ReceiptPdfData {
   receiptNumber: number;
@@ -52,7 +52,7 @@ export interface MonthlyReceiptsReportPdfData {
 export async function generateReceiptPdf(
   receiptId: number
 ): Promise<ReceiptPdfData> {
-  await requireAuth();
+  await requireAdmin();
 
   const receipt = await prisma.receipt.findUniqueOrThrow({
     where: { id: receiptId },
@@ -73,7 +73,7 @@ export async function generateReceiptPdf(
 export async function generateLedgerPdf(
   studentId: number
 ): Promise<LedgerPdfData> {
-  await requireAuth();
+  await requireAdmin();
 
   const student = await prisma.student.findUniqueOrThrow({
     where: { id: studentId },
@@ -138,7 +138,7 @@ export async function generateMonthlyReceiptsPdf(
   year: number,
   month: number
 ): Promise<MonthlyReceiptsReportPdfData> {
-  await requireAuth();
+  await requireAdmin();
 
   const receipts = await prisma.receipt.findMany({
     where: {
