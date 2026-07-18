@@ -204,7 +204,8 @@ export function MonthlyReceiptsReportPdf({
                 {row.notes || "—"}
               </Text>
               <Text style={[styles.colBalance, styles.cellText]}>
-                {formatDinarAmount(row.remainingBalance)}
+                {formatDinarAmount(Math.abs(row.remainingBalance))}
+                {row.remainingBalance < 0 ? " (دائن)" : ""}
               </Text>
               <Text style={[styles.colAmount, styles.cellText]}>
                 {formatDinarAmount(row.amount)}

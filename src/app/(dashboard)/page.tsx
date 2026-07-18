@@ -32,11 +32,11 @@ export default async function DashboardPage() {
       bg: "bg-green-50",
     },
     {
-      title: "الأرصدة المستحقة",
-      value: `${stats.outstandingBalance.toFixed(2)} د.أ`,
-      icon: AlertTriangle,
-      color: "text-orange-600",
-      bg: "bg-orange-50",
+      title: stats.outstandingBalance < 0 ? "رصيد دائن (زيادة دفع)" : "الأرصدة المستحقة",
+      value: `${Math.abs(stats.outstandingBalance).toFixed(2)} د.أ`,
+      icon: stats.outstandingBalance < 0 ? Banknote : AlertTriangle,
+      color: stats.outstandingBalance < 0 ? "text-green-600" : "text-orange-600",
+      bg: stats.outstandingBalance < 0 ? "bg-green-50" : "bg-orange-50",
     },
     {
       title: "نسبة التحصيل",
@@ -56,7 +56,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">لوحة القيادة</h1>
+      <div>
+        <h1 className="text-2xl font-bold">لوحة القيادة</h1>
+        {stats.academicYear && (
+          <p className="text-sm text-muted-foreground">
+            السنة الدراسية الحالية: {stats.academicYear}
+          </p>
+        )}
+      </div>
 
       <UnpaidAlert students={unpaidStudents} />
 

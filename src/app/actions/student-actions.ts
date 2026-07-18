@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { requireAuth, validateRequiredString } from "./validation";
+import { roundMoney } from "@/lib/utils";
 
 interface CreateStudentInput {
   firstName: string;
@@ -44,7 +45,7 @@ interface UpdateStudentInput {
 }
 
 export async function createStudent(input: CreateStudentInput) {
-  await requireAuth();
+  const actor = await requireAuth();
 
   validateRequiredString(input.firstName, "الاسم الأول");
   validateRequiredString(input.lastName, "الاسم الأخير");
@@ -124,6 +125,7 @@ export async function createStudent(input: CreateStudentInput) {
           transactionDate: new Date(),
           description: "رسوم دراسية",
           referenceId: "Fee:Tuition",
+          createdBy: actor,
         },
       });
     }
@@ -138,6 +140,7 @@ export async function createStudent(input: CreateStudentInput) {
           transactionDate: new Date(),
           description: "رسوم إضافية (باص + إضافات)",
           referenceId: "Fee:Extra",
+          createdBy: actor,
         },
       });
     }
@@ -155,6 +158,7 @@ export async function createStudent(input: CreateStudentInput) {
             transactionDate: new Date(),
             description: discountIsPercent ? `خصم ${discountValue}%` : "خصم",
             referenceId: "Fee:Discount",
+            createdBy: actor,
           },
         });
       }
@@ -166,7 +170,7 @@ export async function createStudent(input: CreateStudentInput) {
 }
 
 export async function updateStudent(id: number, input: UpdateStudentInput) {
-  await requireAuth();
+  const actor = await requireAuth();
 
   return prisma.$transaction(async (tx) => {
     const current = await tx.student.findUniqueOrThrow({ where: { id } });
@@ -213,6 +217,7 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
           transactionDate: new Date(),
           description: `تعديل: ${changes.join("، ")}`,
           referenceId: `Adjustment:${Date.now()}`,
+          createdBy: actor,
         },
       });
     }
@@ -238,6 +243,7 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
       },
     });
 
+    logEvent("student_updated", { studentId: id, actor });
     return updated;
   });
 }
@@ -272,7 +278,7 @@ export async function getUnpaidStudents(): Promise<UnpaidStudent[]> {
       _sum: { amount: true },
     });
 
-    const balance = balanceAgg._sum.amount ?? 0;
+    const balance = roundMoney(balanceAgg._sum.amount ?? 0);
 
     if (balance <= 0) continue;
 
@@ -312,7 +318,7 @@ export async function getStudentBalance(studentId: number): Promise<number> {
     _sum: { amount: true },
   });
 
-  return result._sum.amount ?? 0;
+  return roundMoney(result._sum.amount ?? 0);
 }
 
 export async function getStudentLedger(studentId: number) {
@@ -325,7 +331,7 @@ export async function getStudentLedger(studentId: number) {
 
   let runningBalance = 0;
   const ledger = transactions.reverse().map((t) => {
-    runningBalance += t.amount;
+    runningBalance = roundMoney(runningBalance + t.amount);
     return { ...t, runningBalance };
   });
 

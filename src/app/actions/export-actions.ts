@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAuth, requireAdmin } from "@/app/actions/validation";
+import { roundMoney } from "@/lib/utils";
 import {
   exportRevenuesToExcel,
   exportExpensesToExcel,
@@ -80,7 +81,7 @@ export async function exportStudentBalances(grade?: string, year?: string) {
         name: `${s.firstName} ${s.lastName}`,
         grade: s.grade,
         academicYear: s.academicYear,
-        balance: result._sum.amount ?? 0,
+        balance: roundMoney(result._sum.amount ?? 0),
       };
     })
   );

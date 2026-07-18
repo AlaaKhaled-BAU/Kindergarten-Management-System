@@ -19,7 +19,7 @@ interface CancelReceiptInput {
 }
 
 export async function processPayment(input: ProcessPaymentInput) {
-  await requireAuth();
+  const actor = await requireAuth();
 
   validatePositiveNumber(input.amount, "المبلغ");
 
@@ -65,6 +65,7 @@ export async function processPayment(input: ProcessPaymentInput) {
         transactionDate: new Date(input.paymentDate),
         description: "دفعة نقدية",
         referenceId: `Receipt:${nextReceiptNumber}`,
+        createdBy: actor,
       },
     });
 
@@ -87,7 +88,7 @@ export async function processPayment(input: ProcessPaymentInput) {
 }
 
 export async function cancelReceipt(input: CancelReceiptInput) {
-  await requireAuth();
+  const actor = await requireAuth();
 
   return prisma.$transaction(async (tx) => {
     const receipt = await tx.receipt.findUniqueOrThrow({
@@ -116,18 +117,21 @@ export async function cancelReceipt(input: CancelReceiptInput) {
         transactionDate: new Date(),
         description: `إلغاء إيصال رقم ${receipt.receiptNumber}: ${input.reason}`,
         referenceId: `Receipt:${receipt.receiptNumber}`,
+        createdBy: actor,
       },
     });
 
-    const now = new Date();
+    // Reverse into the same year/month as the original payment (issueDate),
+    // not the cancellation date -- otherwise the original month's revenue
+    // stays overstated and an unrelated month gets an orphaned negative line.
     await tx.revenue.create({
       data: {
-        year: now.getFullYear(),
-        month: now.getMonth() + 1,
+        year: receipt.issueDate.getFullYear(),
+        month: receipt.issueDate.getMonth() + 1,
         category: "رسوم دراسية",
         amount: -receipt.amount,
         description: `إلغاء إيصال رقم ${receipt.receiptNumber}`,
-        recordDate: now,
+        recordDate: new Date(),
         source: "Cancellation",
       },
     });

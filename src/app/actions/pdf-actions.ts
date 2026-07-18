@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/app/actions/validation";
+import { roundMoney } from "@/lib/utils";
 
 export interface ReceiptPdfData {
   receiptNumber: number;
@@ -88,7 +89,7 @@ export async function generateLedgerPdf(
   const ledgerEntries: LedgerTransactionEntry[] = transactions.map((t) => {
     const isDebit = t.amount > 0;
     const isCredit = t.amount < 0;
-    runningBalance += t.amount;
+    runningBalance = roundMoney(runningBalance + t.amount);
 
     let receiptNumber: string | undefined;
     if (t.referenceId?.startsWith("Receipt:")) {
@@ -106,22 +107,21 @@ export async function generateLedgerPdf(
     };
   });
 
-  const totalDue = transactions
-    .filter((t) => t.transactionType === "Charge" && t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalDue = roundMoney(
+    transactions
+      .filter((t) => t.transactionType === "Charge" && t.amount > 0)
+      .reduce((sum, t) => sum + t.amount, 0)
+  );
 
-  const totalDiscount = transactions
-    .filter(
-      (t) =>
-        (t.transactionType === "Charge" && t.amount < 0) ||
-        t.transactionType === "Adjustment"
-    )
-    .reduce(
-      (sum, t) => sum + (t.amount < 0 ? Math.abs(t.amount) : 0),
-      0
-    );
+  const totalDiscount = roundMoney(
+    transactions
+      .filter((t) => t.transactionType === "Charge" && t.amount < 0)
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  );
 
-  const netAmount = Math.max(0, runningBalance);
+  // Not clamped to 0: a negative balance is a real credit (the family
+  // prepaid), not "nothing due" -- ledger-pdf.tsx labels the sign for print.
+  const netAmount = runningBalance;
 
   return {
     studentName: `${student.firstName} ${student.lastName}`,
@@ -166,12 +166,14 @@ export async function generateMonthlyReceiptsPdf(
       studentName: r.studentName,
       receiptNumber: r.receiptNumber,
       amount: r.amount,
-      remainingBalance: Math.max(0, balance._sum.amount ?? 0),
+      // Not clamped to 0: negative means this student is in credit, not
+      // "nothing remaining" -- monthly-summary-pdf.tsx labels the sign.
+      remainingBalance: roundMoney(balance._sum.amount ?? 0),
       notes: r.payment.notes ?? "",
     });
   }
 
-  const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0);
+  const totalAmount = roundMoney(rows.reduce((sum, row) => sum + row.amount, 0));
 
   return {
     month,

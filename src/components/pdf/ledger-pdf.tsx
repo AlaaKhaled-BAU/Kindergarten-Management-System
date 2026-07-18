@@ -236,7 +236,10 @@ export function LedgerPdf({
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>صافي المبلغ:</Text>
-              <Text style={styles.infoValue}>{formatDinarAmount(netAmount)}</Text>
+              <Text style={styles.infoValue}>
+                {formatDinarAmount(Math.abs(netAmount))}
+                {netAmount > 0 ? " له" : netAmount < 0 ? " عليه" : ""}
+              </Text>
             </View>
           </View>
         </View>

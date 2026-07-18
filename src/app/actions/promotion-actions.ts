@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, validateRequiredString } from "./validation";
+import { roundMoney } from "@/lib/utils";
 
 interface PromotionResult {
   oldStudentId: number;
@@ -15,7 +16,7 @@ export async function promoteStudents(
   newAcademicYear: string,
   newGrade: string
 ): Promise<PromotionResult[]> {
-  await requireAdmin();
+  const actor = await requireAdmin();
 
   validateRequiredString(newAcademicYear, "السنة الدراسية الجديدة");
   validateRequiredString(newGrade, "الصف الجديد");
@@ -55,7 +56,7 @@ export async function promoteStudents(
           where: { studentId: oldStudent.id },
           _sum: { amount: true },
         });
-        const oldBalance = balanceResult._sum.amount ?? 0;
+        const oldBalance = roundMoney(balanceResult._sum.amount ?? 0);
 
         const newStudent = await tx.student.create({
           data: {
@@ -120,6 +121,7 @@ export async function promoteStudents(
               transactionDate: new Date(),
               description: "رسوم دراسية - ترقية",
               referenceId: "Fee:Tuition:Promotion",
+              createdBy: actor,
             },
           });
         }
@@ -133,6 +135,7 @@ export async function promoteStudents(
               transactionDate: new Date(),
               description: `ترقية إلى ${newGrade} - ${newAcademicYear}`,
               referenceId: `Promotion:To:${newStudent.id}`,
+              createdBy: actor,
             },
           });
 
@@ -144,6 +147,7 @@ export async function promoteStudents(
               transactionDate: new Date(),
               description: `رصيد مرحل من ${oldStudent.grade} - ${oldStudent.academicYear}`,
               referenceId: `Promotion:From:${oldStudent.id}`,
+              createdBy: actor,
             },
           });
         }
