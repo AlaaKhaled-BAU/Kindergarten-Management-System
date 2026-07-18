@@ -81,34 +81,16 @@ function convertHundreds(n: number): string {
   if (remainder === 0) return parts.join(" و ");
 
   if (remainder < 10) {
-    if (parts.length > 0) {
-      parts.push(UNITS_MASCULINE[remainder]);
-    } else {
-      parts.push(UNITS_MASCULINE[remainder]);
-    }
+    parts.push(UNITS_MASCULINE[remainder]);
   } else if (remainder < 20) {
-    if (parts.length > 0) {
-      parts.push(TEENS[remainder]);
-    } else {
-      parts.push(TEENS[remainder]);
-    }
+    parts.push(TEENS[remainder]);
   } else {
     const tens = Math.floor(remainder / 10) * 10;
     const units = remainder % 10;
     if (units === 0) {
-      if (parts.length > 0) {
-        parts.push(TENS[tens]);
-      } else {
-        parts.push(TENS[tens]);
-      }
+      parts.push(TENS[tens]);
     } else {
-      const unitWord = UNITS_MASCULINE[units];
-      const tenWord = TENS[tens];
-      if (parts.length > 0) {
-        parts.push(`${unitWord} و ${tenWord}`);
-      } else {
-        parts.push(`${unitWord} و ${tenWord}`);
-      }
+      parts.push(`${UNITS_MASCULINE[units]} و ${TENS[tens]}`);
     }
   }
 
@@ -155,11 +137,7 @@ function numberToWords(n: number): string {
 
   if (remainder > 0) {
     const rWord = convertHundreds(remainder);
-    if (parts.length > 0) {
-      parts.push(rWord);
-    } else {
-      parts.push(rWord);
-    }
+    parts.push(rWord);
   }
 
   return parts.join(" و ");
@@ -187,24 +165,91 @@ function getLastSegment(n: number): number {
   return lastThousandRemainder;
 }
 
+interface CurrencyNounForms {
+  singular: string;
+  dual: string;
+  plural: string;
+  accusative: string;
+}
+
 /**
- * Converts a Jordanian Dinar amount to Arabic words.
+ * Applies Arabic numeral-noun agreement (1=bare singular, 2=bare dual,
+ * 3-10=plural, 11-99=singular accusative, 100+=singular) to build a
+ * currency phrase. Shared by dinar and fils since the grammar rule is
+ * identical for both, only the noun forms differ.
+ */
+function buildCurrencyString(n: number, forms: CurrencyNounForms): string {
+  if (n === 0) return "";
+  if (n === 1) return forms.singular;
+  if (n === 2) return forms.dual;
+
+  const words = numberToWords(n);
+  const lastSegment = getLastSegment(n);
+
+  if (lastSegment >= 3 && lastSegment <= 10) {
+    return `${words} ${forms.plural}`;
+  } else if (lastSegment >= 11 && lastSegment <= 99) {
+    return `${words} ${forms.accusative}`;
+  }
+  // hundreds, thousands, etc. — مضاف إليه, uses the singular noun form
+  return `${words} ${forms.singular}`;
+}
+
+function buildDinarString(n: number): string {
+  return buildCurrencyString(n, {
+    singular: "دينار أردني",
+    dual: "ديناران أردنيان",
+    plural: "دنانير أردنية",
+    accusative: "ديناراً أردنياً",
+  });
+}
+
+function buildFilString(n: number): string {
+  return buildCurrencyString(n, {
+    singular: "فلس",
+    dual: "فلسان",
+    plural: "فلوس",
+    accusative: "فلساً",
+  });
+}
+
+/**
+ * Splits an amount into a non-negative whole-dinar part and a 0-999 fils
+ * part, carrying into the dinar part if rounding pushes fils to 1000.
+ * Exported so callers (e.g. the receipt PDF's dinar/fils boxes) share this
+ * math instead of re-deriving it and risking the two copies drifting apart.
+ */
+export function splitDinarFils(absAmount: number): { dinars: number; fils: number } {
+  const dinars = Math.floor(absAmount);
+  const fils = Math.round((absAmount - dinars) * 1000);
+  if (fils === 1000) {
+    return { dinars: dinars + 1, fils: 0 };
+  }
+  return { dinars, fils };
+}
+
+/**
+ * Converts a Jordanian Dinar amount to Arabic words. Jordanian fils are
+ * thousandths of a dinar (3 decimal places), not cents.
  *
  * @param amount - The amount in Jordanian Dinars (e.g. 500.50)
  * @returns Arabic words representation
  *
  * @example
- * numberToArabicWords(500.50)  // "خمسمائة دينار أردني و خمسون فلساً"
- * numberToArabicWords(1250.00) // "ألف و مئتان و خمسون ديناراً أردنياً فقط"
- * numberToArabicWords(0.25)    // "خمسة و عشرون فلساً"
- * numberToArabicWords(1500.75) // "ألف و خمسمائة دينار أردني و خمسة و سبعون فلساً"
+ * numberToArabicWords(500.050)  // "خمسمائة دينار أردني و خمسون فلساً"
+ * numberToArabicWords(1250.00)  // "ألف و مئتان و خمسون ديناراً أردنياً"
+ * numberToArabicWords(0.025)    // "خمسة و عشرون فلساً"
+ * numberToArabicWords(1500.750) // "ألف و خمسمائة دينار أردني و سبعمائة و خمسون فلساً"
  */
 export function numberToArabicWords(amount: number): string {
-  const integerPart = Math.floor(amount);
-  const decimalPart = Math.round((amount - integerPart) * 100);
+  if (amount < 0) {
+    return `سالب ${numberToArabicWords(-amount)}`;
+  }
 
-  const dinarWords = buildDinarString(integerPart);
-  const filWords = buildFilString(decimalPart);
+  const { dinars, fils } = splitDinarFils(amount);
+
+  const dinarWords = buildDinarString(dinars);
+  const filWords = buildFilString(fils);
 
   if (dinarWords && filWords) {
     return `${dinarWords} و ${filWords}`;
@@ -217,55 +262,16 @@ export function numberToArabicWords(amount: number): string {
   }
 }
 
-function buildDinarString(n: number): string {
-  if (n === 0) return "";
-
-  const words = numberToWords(n);
-  const lastSegment = getLastSegment(n);
-
-  // Determine currency suffix based on last numeric segment
-  // 1: singular, 2: dual, 3-10: plural, 11-99: singular accusative, 100+: singular genitive
-  if (n === 1) {
-    return `${words} دينار أردني`;
-  } else if (n === 2) {
-    return `${words} ديناران أردنيان`;
-  } else if (lastSegment >= 3 && lastSegment <= 10) {
-    return `${words} دنانير أردنية`;
-  } else if (lastSegment >= 11 && lastSegment <= 99) {
-    return `${words} ديناراً أردنياً`;
-  } else {
-    // hundreds, thousands, etc. — مضاف إليه
-    return `${words} دينار أردني`;
-  }
-}
-
-function buildFilString(n: number): string {
-  if (n === 0) return "";
-
-  const words = numberToWords(n);
-
-  if (n === 1) {
-    return `${words} فلس`;
-  } else if (n === 2) {
-    return `${words} فلسان`;
-  } else if (n >= 3 && n <= 10) {
-    return `${words} فلوس`;
-  } else {
-    // 11-99: singular accusative تمييز
-    return `${words} فلساً`;
-  }
-}
-
 /**
- * Formats an amount as a readable string with dinar and fils.
- * Example: 500.50 → "500 دينار و 50 فلس"
+ * Formats an amount as a readable numeric string with dinar and fils.
+ * Example: 500.050 → "500 دينار و 50 فلس"
  */
 export function formatDinarAmount(amount: number): string {
-  const integerPart = Math.floor(amount);
-  const decimalPart = Math.round((amount - integerPart) * 100);
+  const sign = amount < 0 ? "-" : "";
+  const { dinars, fils } = splitDinarFils(Math.abs(amount));
 
-  if (decimalPart > 0) {
-    return `${integerPart} دينار و ${decimalPart} فلس`;
+  if (fils > 0) {
+    return `${sign}${dinars} دينار و ${fils} فلس`;
   }
-  return `${integerPart} دينار`;
+  return `${sign}${dinars} دينار`;
 }

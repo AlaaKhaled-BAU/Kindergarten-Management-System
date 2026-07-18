@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
-import { numberToArabicWords } from "@/lib/tafqit";
+import { numberToArabicWords, splitDinarFils } from "@/lib/tafqit";
 
 Font.register({
   family: "Scheherazade New",
@@ -167,8 +167,7 @@ export function ReceiptPdf({
   paymentReason,
   kindergartenName,
 }: ReceiptPdfProps) {
-  const dinar = Math.floor(amount);
-  const fils = Math.round((amount - dinar) * 100);
+  const { dinars: dinar, fils } = splitDinarFils(amount);
   const amountWords = numberToArabicWords(amount);
 
   return (
@@ -193,7 +192,7 @@ export function ReceiptPdf({
           <View style={styles.dinarFilsBoxes}>
             <View style={styles.amountBox}>
               <Text style={styles.amountBoxLabel}>فلس</Text>
-              <Text style={styles.amountBoxValue}>{fils.toString().padStart(2, "0")}</Text>
+              <Text style={styles.amountBoxValue}>{fils.toString().padStart(3, "0")}</Text>
             </View>
             <View style={styles.amountBox}>
               <Text style={styles.amountBoxLabel}>دينار</Text>
@@ -202,7 +201,7 @@ export function ReceiptPdf({
           </View>
           <Text style={styles.receiptTitle}>سند قبض</Text>
           <Text style={styles.receiptNumber}>
-            {"No. "}{String(receiptNumber).padStart(5, "0")}
+            {"رقم "}{String(receiptNumber).padStart(5, "0")}
           </Text>
         </View>
 
