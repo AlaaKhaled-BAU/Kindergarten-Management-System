@@ -60,6 +60,9 @@ export function PaymentsPageClient({
   const [open, setOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+  const [pending, setPending] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const filtered = receipts.filter((r) => {
     if (!search) return true;
@@ -71,48 +74,64 @@ export function PaymentsPageClient({
   });
 
   async function handlePayment(formData: FormData) {
-    const result = await processPayment({
-      studentId: parseInt(formData.get("studentId") as string),
-      amount: parseFloat(formData.get("amount") as string),
-      paymentDate: new Date(formData.get("paymentDate") as string),
-      paymentMethod: formData.get("paymentMethod") as string,
-      referenceNumber: (formData.get("referenceNumber") as string) || undefined,
-      notes: (formData.get("notes") as string) || undefined,
-    });
+    setPaymentError(null);
+    setPending(true);
+    try {
+      const result = await processPayment({
+        studentId: parseInt(formData.get("studentId") as string),
+        amount: parseFloat(formData.get("amount") as string),
+        paymentDate: new Date(formData.get("paymentDate") as string),
+        paymentMethod: formData.get("paymentMethod") as string,
+        referenceNumber: (formData.get("referenceNumber") as string) || undefined,
+        notes: (formData.get("notes") as string) || undefined,
+      });
 
-    setReceipts((prev) => [
-      {
-        ...result.receipt,
-        issueDate: result.receipt.issueDate.toISOString(),
-        isCanceled: false,
-        cancelReason: null,
-        payment: result.payment,
-      },
-      ...prev,
-    ]);
-    setOpen(false);
-    router.refresh();
+      setReceipts((prev) => [
+        {
+          ...result.receipt,
+          issueDate: result.receipt.issueDate.toISOString(),
+          isCanceled: false,
+          cancelReason: null,
+          payment: result.payment,
+        },
+        ...prev,
+      ]);
+      setOpen(false);
+      router.refresh();
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function handleCancel(formData: FormData) {
     if (!selectedReceipt) return;
     const reason = formData.get("reason") as string;
 
-    await cancelReceipt({
-      receiptId: selectedReceipt.id,
-      reason,
-    });
+    setCancelError(null);
+    setPending(true);
+    try {
+      await cancelReceipt({
+        receiptId: selectedReceipt.id,
+        reason,
+      });
 
-    setReceipts((prev) =>
-      prev.map((r) =>
-        r.id === selectedReceipt.id
-          ? { ...r, isCanceled: true, cancelReason: reason }
-          : r
-      )
-    );
-    setCancelOpen(false);
-    setSelectedReceipt(null);
-    router.refresh();
+      setReceipts((prev) =>
+        prev.map((r) =>
+          r.id === selectedReceipt.id
+            ? { ...r, isCanceled: true, cancelReason: reason }
+            : r
+        )
+      );
+      setCancelOpen(false);
+      setSelectedReceipt(null);
+      router.refresh();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+    } finally {
+      setPending(false);
+    }
   }
 
   const paymentMethods = ["نقداً", "شيك", "تحويل بنكي", "بطاقة ائتمان"];
@@ -121,7 +140,13 @@ export function PaymentsPageClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">المدفوعات والإيصالات</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(v) => {
+            setOpen(v);
+            if (!v) setPaymentError(null);
+          }}
+        >
           <DialogTrigger
             render={<Button>إصدار سند قبض جديد</Button>}
           />
@@ -189,8 +214,13 @@ export function PaymentsPageClient({
                 <Label htmlFor="notes">ملاحظات</Label>
                 <Textarea id="notes" name="notes" rows={2} />
               </div>
-              <Button type="submit" className="w-full">
-                إصدار الإيصال
+              {paymentError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {paymentError}
+                </p>
+              )}
+              <Button type="submit" className="w-full" disabled={pending}>
+                {pending ? "جارٍ الإصدار..." : "إصدار الإيصال"}
               </Button>
             </form>
           </DialogContent>
@@ -255,8 +285,10 @@ export function PaymentsPageClient({
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label="إلغاء الإيصال"
                         className="text-destructive hover:text-destructive h-auto px-2"
                         onClick={() => {
+                          setCancelError(null);
                           setSelectedReceipt(r);
                           setCancelOpen(true);
                         }}
@@ -290,16 +322,22 @@ export function PaymentsPageClient({
                   <Label htmlFor="reason">سبب الإلغاء *</Label>
                   <Textarea id="reason" name="reason" required rows={3} />
                 </div>
+                {cancelError && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {cancelError}
+                  </p>
+                )}
                 <div className="flex gap-2 justify-end">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setCancelOpen(false)}
+                    disabled={pending}
                   >
                     تراجع
                   </Button>
-                  <Button type="submit" variant="destructive">
-                    تأكيد الإلغاء
+                  <Button type="submit" variant="destructive" disabled={pending}>
+                    {pending ? "جارٍ الإلغاء..." : "تأكيد الإلغاء"}
                   </Button>
                 </div>
               </form>

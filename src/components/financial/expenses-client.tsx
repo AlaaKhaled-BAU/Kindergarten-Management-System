@@ -32,6 +32,10 @@ interface Expense {
   referenceNumber: string | null;
 }
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "حدث خطأ غير متوقع";
+}
+
 export function ExpensesPageClient({
   expenses: initialExpenses,
 }: {
@@ -41,41 +45,63 @@ export function ExpensesPageClient({
   const [expenses, setExpenses] = useState(initialExpenses);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
-    const data = {
-      year: parseInt(formData.get("year") as string),
-      month: parseInt(formData.get("month") as string),
-      category: formData.get("category") as string,
-      amount: parseFloat(formData.get("amount") as string),
-      description: (formData.get("description") as string) || undefined,
-      expenseDate: new Date(formData.get("expenseDate") as string),
-      vendor: (formData.get("vendor") as string) || undefined,
-      referenceNumber: (formData.get("referenceNumber") as string) || undefined,
-    };
+    setError(null);
+    setPending(true);
+    try {
+      const data = {
+        year: parseInt(formData.get("year") as string),
+        month: parseInt(formData.get("month") as string),
+        category: formData.get("category") as string,
+        amount: parseFloat(formData.get("amount") as string),
+        description: (formData.get("description") as string) || undefined,
+        expenseDate: new Date(formData.get("expenseDate") as string),
+        vendor: (formData.get("vendor") as string) || undefined,
+        referenceNumber: (formData.get("referenceNumber") as string) || undefined,
+      };
 
-    if (editing) {
-      const updated = await updateExpense(editing.id, data);
-      setExpenses((prev) =>
-        prev.map((e) => (e.id === editing.id ? { ...e, ...updated, expenseDate: updated.expenseDate.toISOString() } : e))
-      );
-    } else {
-      const created = await createExpense(data);
-      setExpenses((prev) => [{
-        ...created,
-        expenseDate: created.expenseDate.toISOString(),
-      } as Expense, ...prev]);
+      if (editing) {
+        const updated = await updateExpense(editing.id, data);
+        setExpenses((prev) =>
+          prev.map((e) => (e.id === editing.id ? { ...e, ...updated, expenseDate: updated.expenseDate.toISOString() } : e))
+        );
+      } else {
+        const created = await createExpense(data);
+        setExpenses((prev) => [{
+          ...created,
+          expenseDate: created.expenseDate.toISOString(),
+        } as Expense, ...prev]);
+      }
+
+      setOpen(false);
+      setEditing(null);
+      router.refresh();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setPending(false);
     }
-
-    setOpen(false);
-    setEditing(null);
-    router.refresh();
   }
 
-  async function handleDelete(id: number) {
-    await deleteExpense(id);
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-    router.refresh();
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteError(null);
+    setPending(true);
+    try {
+      await deleteExpense(deleteTarget.id);
+      setExpenses((prev) => prev.filter((e) => e.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      router.refresh();
+    } catch (err) {
+      setDeleteError(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
   }
 
   async function handleExport() {
@@ -97,7 +123,10 @@ export function ExpensesPageClient({
           open={open}
           onOpenChange={(v) => {
             setOpen(v);
-            if (!v) setEditing(null);
+            if (!v) {
+              setEditing(null);
+              setError(null);
+            }
           }}
         >
           <DialogTrigger
@@ -198,8 +227,13 @@ export function ExpensesPageClient({
                   defaultValue={editing?.description ?? ""}
                 />
               </div>
-              <Button type="submit" className="w-full">
-                {editing ? "حفظ التعديلات" : "إضافة المصروف"}
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" className="w-full" disabled={pending}>
+                {pending ? "جارٍ الحفظ..." : editing ? "حفظ التعديلات" : "إضافة المصروف"}
               </Button>
             </form>
           </DialogContent>
@@ -247,8 +281,10 @@ export function ExpensesPageClient({
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="تعديل"
                         onClick={() => {
                           setEditing(e);
+                          setError(null);
                           setOpen(true);
                         }}
                       >
@@ -257,8 +293,12 @@ export function ExpensesPageClient({
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="حذف"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(e.id)}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setDeleteTarget(e);
+                        }}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -270,6 +310,54 @@ export function ExpensesPageClient({
           </tbody>
         </table>
       </div>
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => {
+          if (!v) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>حذف المصروف</DialogTitle>
+          </DialogHeader>
+          {deleteTarget && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                سيتم حذف مصروف <strong>{deleteTarget.category}</strong> بمبلغ{" "}
+                <strong>{deleteTarget.amount.toFixed(2)} د.أ</strong> نهائياً. هذا
+                الإجراء لا يمكن التراجع عنه.
+              </p>
+              {deleteError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {deleteError}
+                </p>
+              )}
+              <div className="flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={pending}
+                >
+                  تراجع
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={pending}
+                >
+                  {pending ? "جارٍ الحذف..." : "تأكيد الحذف"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

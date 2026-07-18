@@ -43,6 +43,8 @@ export function StudentsTable({
   const [gradeFilter, setGradeFilter] = useState("all");
   const [students, setStudents] = useState(initialStudents);
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const gradeMap: Record<string, string> = {
     Pre: "بستان",
@@ -61,35 +63,43 @@ export function StudentsTable({
   });
 
   async function handleCreate(formData: FormData) {
-    const busFees = parseFloat((formData.get("busFees") as string) || "0");
-    const additionalFees = parseFloat(
-      (formData.get("additionalFees") as string) || "0"
-    );
-    const discountValue = parseFloat(
-      (formData.get("discountValue") as string) || "0"
-    );
-    const discountIsPercent = formData.get("discountIsPercent") === "on";
+    setError(null);
+    setPending(true);
+    try {
+      const busFees = parseFloat((formData.get("busFees") as string) || "0");
+      const additionalFees = parseFloat(
+        (formData.get("additionalFees") as string) || "0"
+      );
+      const discountValue = parseFloat(
+        (formData.get("discountValue") as string) || "0"
+      );
+      const discountIsPercent = formData.get("discountIsPercent") === "on";
 
-    const student = await createStudent({
-      firstName: formData.get("firstName") as string,
-      lastName: formData.get("lastName") as string,
-      grade: formData.get("grade") as string,
-      academicYear: formData.get("academicYear") as string,
-      dateOfBirth: formData.get("dateOfBirth")
-        ? new Date(formData.get("dateOfBirth") as string)
-        : undefined,
-      notes: (formData.get("notes") as string) || undefined,
-      busFees,
-      additionalFees,
-      discountValue,
-      discountIsPercent,
-      allergies: (formData.get("allergies") as string) || undefined,
-      medicalNotes: (formData.get("medicalNotes") as string) || undefined,
-    });
+      const student = await createStudent({
+        firstName: formData.get("firstName") as string,
+        lastName: formData.get("lastName") as string,
+        grade: formData.get("grade") as string,
+        academicYear: formData.get("academicYear") as string,
+        dateOfBirth: formData.get("dateOfBirth")
+          ? new Date(formData.get("dateOfBirth") as string)
+          : undefined,
+        notes: (formData.get("notes") as string) || undefined,
+        busFees,
+        additionalFees,
+        discountValue,
+        discountIsPercent,
+        allergies: (formData.get("allergies") as string) || undefined,
+        medicalNotes: (formData.get("medicalNotes") as string) || undefined,
+      });
 
-    setStudents((prev) => [{ ...student, balance: 0 }, ...prev]);
-    setOpen(false);
-    router.refresh();
+      setStudents((prev) => [{ ...student, balance: 0 }, ...prev]);
+      setOpen(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -118,7 +128,13 @@ export function StudentsTable({
           </Select>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(v) => {
+            setOpen(v);
+            if (!v) setError(null);
+          }}
+        >
           <DialogTrigger
             render={
               <Button variant="default">
@@ -224,8 +240,13 @@ export function StudentsTable({
                 <Label htmlFor="notes">ملاحظات</Label>
                 <Input id="notes" name="notes" />
               </div>
-              <Button type="submit" className="w-full">
-                إضافة الطالب
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" className="w-full" disabled={pending}>
+                {pending ? "جارٍ الإضافة..." : "إضافة الطالب"}
               </Button>
             </form>
           </DialogContent>
@@ -266,7 +287,7 @@ export function StudentsTable({
                   <td className="py-3 px-4">{s.academicYear}</td>
                   <td
                     className={`py-3 px-4 text-end font-medium ${
-                      s.balance >= 0 ? "text-green-600" : "text-red-600"
+                      s.balance > 0 ? "text-orange-600" : "text-green-600"
                     }`}
                   >
                     {s.balance.toFixed(2)} د.أ

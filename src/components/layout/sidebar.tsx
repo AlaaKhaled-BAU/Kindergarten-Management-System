@@ -86,17 +86,18 @@ export function Sidebar({ role }: SidebarProps) {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger
             render={
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="فتح القائمة">
                 <Menu className="size-5" />
               </Button>
             }
           />
-          <SheetContent side="right" className="w-64 p-0">
+          <SheetContent side="right" className="w-64 p-0" showCloseButton={false}>
             <div className="flex items-center justify-between border-b px-4 py-3">
               <span className="text-lg font-bold">إدارة الروضة</span>
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="إغلاق القائمة"
                 onClick={() => setOpen(false)}
               >
                 <X className="size-5" />
