@@ -36,12 +36,12 @@ export async function adminLogin(
   }
 
   await setAuthCookie("admin");
-  logEvent("login", { role: "admin" });
+  await logEvent("login", { role: "admin" });
   redirect("/");
 }
 
 export async function teacherLogin(): Promise<never> {
   await setAuthCookie("teacher");
-  logEvent("login", { role: "teacher" });
+  await logEvent("login", { role: "teacher" });
   redirect("/students");
 }

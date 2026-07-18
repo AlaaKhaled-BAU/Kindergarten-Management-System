@@ -106,6 +106,8 @@ model Payment {
 
   student         Student   @relation(fields: [studentId], references: [id])
   receipts        Receipt[]
+
+  @@index([studentId])
 }
 
 model Receipt {
@@ -121,6 +123,8 @@ model Receipt {
   cancelReason     String?
 
   payment          Payment   @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
 }
 
 model Revenue {
@@ -161,6 +165,7 @@ model Transaction {
   student         Student  @relation(fields: [studentId], references: [id])
 
   @@index([studentId])
+  @@index([studentId, transactionDate])
 }
 
 model Refund {

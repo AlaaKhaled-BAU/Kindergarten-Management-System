@@ -82,7 +82,7 @@ export async function processPayment(input: ProcessPaymentInput) {
       },
     });
 
-    logEvent("receipt_created", { receiptId: receipt.id, studentId: input.studentId });
+    await logEvent("receipt_created", { receiptId: receipt.id, studentId: input.studentId });
     return { payment, receipt };
   });
 }
@@ -136,7 +136,7 @@ export async function cancelReceipt(input: CancelReceiptInput) {
       },
     });
 
-    logEvent("receipt_canceled", { receiptId: receipt.id });
+    await logEvent("receipt_canceled", { receiptId: receipt.id });
     return receipt;
   });
 }

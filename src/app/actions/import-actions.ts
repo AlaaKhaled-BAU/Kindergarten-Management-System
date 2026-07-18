@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "./validation";
 import { MONTH_INDEX } from "@/lib/excel-utils";
+import { logEvent } from "@/lib/logger";
 import ExcelJS from "exceljs";
 
 function parseMonth(raw: unknown): number {
@@ -122,6 +123,7 @@ export async function importRevenues(formData: FormData) {
     )
   );
 
+  await logEvent("import", { type: "revenue", inserted: inserted.length, errors: errors.length });
   return { success: inserted.length, errors };
 }
 
@@ -199,6 +201,7 @@ export async function importExpenses(formData: FormData) {
     )
   );
 
+  await logEvent("import", { type: "expense", inserted: inserted.length, errors: errors.length });
   return { success: inserted.length, errors };
 }
 

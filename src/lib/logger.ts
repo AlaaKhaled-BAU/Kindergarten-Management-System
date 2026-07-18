@@ -1,20 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
 
-export const LOG_TYPES = {
-  receipt_created: "receipt_created",
-  receipt_canceled: "receipt_canceled",
-  login: "login",
-  import: "import",
-  export: "export",
-  backup_created: "backup_created",
-  error: "error",
-  student_created: "student_created",
-  payment_processed: "payment_processed",
-} as const;
-
-export type LogType = (typeof LOG_TYPES)[keyof typeof LOG_TYPES];
-
 interface LogEntry {
   timestamp: string;
   type: string;
@@ -27,6 +13,14 @@ function getLogPath(): string {
   return path.join(logsDir, `log_${today}.json`);
 }
 
+/**
+ * Appends one JSON object per line (JSON Lines) rather than reading the
+ * whole file into an array and rewriting it. A read-modify-write on a
+ * single JSON array is a real race under concurrent requests: two
+ * overlapping calls can both read the same stale content, and the later
+ * write silently clobbers the earlier entry. fs.appendFile is atomic
+ * enough for these small writes and removes that race outright.
+ */
 export async function logEvent(
   type: string,
   details: Record<string, unknown>
@@ -41,19 +35,8 @@ export async function logEvent(
       details,
     };
 
-    const logPath = getLogPath();
-
-    let entries: LogEntry[] = [];
-    try {
-      const existing = await fs.readFile(logPath, "utf-8");
-      entries = JSON.parse(existing);
-    } catch {
-      entries = [];
-    }
-
-    entries.push(entry);
-    await fs.writeFile(logPath, JSON.stringify(entries, null, 2), "utf-8");
+    await fs.appendFile(getLogPath(), JSON.stringify(entry) + "\n", "utf-8");
   } catch {
-    // Silently fail — logging must never break application flow
+    // Silently fail -- logging must never break application flow
   }
 }

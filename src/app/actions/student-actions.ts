@@ -164,7 +164,7 @@ export async function createStudent(input: CreateStudentInput) {
       }
     }
 
-    logEvent("student_created", { studentId: student.id });
+    await logEvent("student_created", { studentId: student.id });
     return student;
   });
 }
@@ -243,7 +243,7 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
       },
     });
 
-    logEvent("student_updated", { studentId: id, actor });
+    await logEvent("student_updated", { studentId: id, actor });
     return updated;
   });
 }

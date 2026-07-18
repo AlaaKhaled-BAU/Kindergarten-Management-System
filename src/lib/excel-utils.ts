@@ -42,6 +42,18 @@ function applyRtlSheet(sheet: ExcelJS.Worksheet) {
   sheet.views = [{ rightToLeft: true }];
 }
 
+/**
+ * Prefixes a leading apostrophe (Excel's "treat as text" escape) on any
+ * value starting with =, +, -, or @ before writing it into a cell.
+ * Without this, a student/vendor/category name typed as e.g.
+ * "=HYPERLINK(...)" gets written as a live formula and executes when the
+ * exported file is opened in Excel/LibreOffice -- classic CSV/XLSX
+ * formula-injection risk on any free-text field that reaches an export.
+ */
+function sanitizeCell(value: string): string {
+  return /^[=+\-@]/.test(value) ? `'${value}` : value;
+}
+
 function styleHeader(sheet: ExcelJS.Worksheet, colCount: number) {
   const headerRow = sheet.getRow(1);
   headerRow.font = { bold: true };
@@ -76,10 +88,10 @@ export async function exportRevenuesToExcel(data: RevenueRow[]): Promise<Buffer>
     sheet.addRow({
       year: row.year,
       month: MONTH_NAMES[row.month - 1] || String(row.month),
-      category: row.category,
+      category: sanitizeCell(row.category),
       amount: row.amount,
-      description: row.description ?? "",
-      source: row.source ?? "",
+      description: sanitizeCell(row.description ?? ""),
+      source: sanitizeCell(row.source ?? ""),
       date: row.date.toLocaleDateString("ar"),
     });
   }
@@ -111,10 +123,10 @@ export async function exportExpensesToExcel(data: ExpenseRow[]): Promise<Buffer>
     sheet.addRow({
       year: row.year,
       month: MONTH_NAMES[row.month - 1] || String(row.month),
-      category: row.category,
+      category: sanitizeCell(row.category),
       amount: row.amount,
-      description: row.description ?? "",
-      vendor: row.vendor ?? "",
+      description: sanitizeCell(row.description ?? ""),
+      vendor: sanitizeCell(row.vendor ?? ""),
       date: row.date.toLocaleDateString("ar"),
     });
   }
@@ -141,7 +153,7 @@ export async function exportStudentBalancesToExcel(data: StudentBalanceRow[]): P
 
   for (const row of data) {
     sheet.addRow({
-      name: row.name,
+      name: sanitizeCell(row.name),
       grade: row.grade,
       academicYear: row.academicYear,
       balance: row.balance,
