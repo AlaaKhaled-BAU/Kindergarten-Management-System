@@ -1,26 +1,94 @@
 {
-  "name": "kindergarten-setup",
+  "name": "kindergarten-erp",
   "version": "0.1.0",
   "private": true,
+  "main": "main/main.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -k -n next,electron \"next dev -p 3010\" \"wait-on -t 120000 tcp:localhost:3010 && PORT=3010 electron .\"",
+    "dev:next": "next dev -p 3010",
+    "dev:electron": "PORT=3010 electron .",
+    "dev:launcher": "node scripts/start-dev.js",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "electron:dev": "electron .",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate && node scripts/patch-react-pdf.js"
+  },
+  "build": {
+    "appId": "com.kindergarten.erp",
+    "productName": "Kindergarten ERP",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "main/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "standalone"
+      },
+      {
+        "from": ".next/static",
+        "to": "standalone/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "standalone/public"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@fontsource/cairo": "^5",
+    "@fontsource/scheherazade-new": "^5",
+    "@prisma/client": "^6.19.3",
+    "@react-pdf/renderer": "^4.5.1",
+    "@react-pdf/textkit": "^6.3.0",
+    "@tailwindcss/postcss": "^4.3.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^0.577.0",
     "next": "16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "shadcn": "^4.7.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.0",
+    "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9",
+    "electron": "^37",
+    "electron-builder": "^26",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "prisma": "^6.19.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "wait-on": "^9"
   }
 }

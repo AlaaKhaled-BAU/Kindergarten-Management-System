@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id                Int       @id @default(autoincrement())
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime?
+  grade             String
+  academicYear      String
+  enrollmentDate    DateTime  @default(now())
+  isActive          Boolean   @default(true)
+  notes             String?
+  busFees           Float     @default(0)
+  additionalFees    Float     @default(0)
+  discountValue     Float     @default(0)
+  discountIsPercent Boolean   @default(false)
+  exitStatus        Int       @default(0)
+  tuitionOverride   Float?
+  globalId          String?
+  allergies         String?
+  medicalNotes      String?
+  siblingGlobalId   String?
+
+  parents           StudentParent[]
+  pickups           AuthorizedPickupPerson[]
+  fees              StudentFee[]
+  payments          Payment[]
+  transactions      Transaction[]
+  refunds           Refund[]
+
+  @@index([grade, academicYear])
+}
+
+model Parent {
+  id             Int    @id @default(autoincrement())
+  fullName       String
+  phone          String
+  alternatePhone String?
+  email          String?
+  address        String?
+
+  students       StudentParent[]
+}
+
+model StudentParent {
+  studentId    Int
+  parentId     Int
+  relationship String?
+
+  student Student @relation(fields: [studentId], references: [id])
+  parent  Parent  @relation(fields: [parentId], references: [id])
+
+  @@id([studentId, parentId])
+}
+
+model AuthorizedPickupPerson {
+  id           Int     @id @default(autoincrement())
+  studentId    Int
+  fullName     String
+  relationship String?
+  phone        String?
+  notes        String?
+
+  student      Student @relation(fields: [studentId], references: [id])
+}
+
+model Fee {
+  id              Int     @id @default(autoincrement())
+  name            String
+  description     String?
+  amount          Float
+  feeType         String
+  applicableGrade String?
+  academicYear    String?
+  isActive        Boolean @default(true)
+
+  studentFees     StudentFee[]
+}
+
+model StudentFee {
+  id        Int       @id @default(autoincrement())
+  studentId Int
+  feeId     Int
+  dueDate   DateTime?
+
+  student   Student   @relation(fields: [studentId], references: [id])
+  fee       Fee       @relation(fields: [feeId], references: [id])
+}
+
+model Payment {
+  id              Int       @id @default(autoincrement())
+  studentId       Int
+  amount          Float
+  paymentDate     DateTime
+  paymentMethod   String    @default("Cash")
+  referenceNumber String?
+  notes           String?
+
+  student         Student   @relation(fields: [studentId], references: [id])
+  receipts        Receipt[]
+}
+
+model Receipt {
+  id               Int       @id @default(autoincrement())
+  receiptNumber    Int       @unique
+  paymentId        Int
+  issueDate        DateTime
+  amount           Float
+  studentName      String
+  kindergartenName String
+  isCanceled       Boolean   @default(false)
+  cancelDate       DateTime?
+  cancelReason     String?
+
+  payment          Payment   @relation(fields: [paymentId], references: [id])
+}
+
+model Revenue {
+  id          Int      @id @default(autoincrement())
+  year        Int
+  month       Int
+  category    String
+  amount      Float
+  description String?
+  recordDate  DateTime
+  source      String?
+}
+
+model Expense {
+  id              Int      @id @default(autoincrement())
+  year            Int
+  month           Int
+  category        String
+  amount          Float
+  description     String?
+  expenseDate     DateTime
+  vendor          String?
+  referenceNumber String?
+  source          String?
+}
+
+model Transaction {
+  id              Int      @id @default(autoincrement())
+  studentId       Int
+  transactionType String
+  amount          Float
+  transactionDate DateTime @default(now())
+  description     String?
+  referenceId     String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+}
+
+model Refund {
+  id         Int      @id @default(autoincrement())
+  studentId  Int
+  amount     Float
+  refundDate DateTime
+  reason     String
+  notes      String?
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  student    Student  @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+}
