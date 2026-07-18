@@ -7,6 +7,20 @@ import { requireAdmin } from "./validation";
 
 const MAX_BACKUPS = 30;
 
+/**
+ * Resolves the live SQLite file from DATABASE_URL rather than assuming
+ * "kindergarten.db" sits at cwd -- main.js overrides DATABASE_URL to an
+ * absolute path outside the (possibly read-only) install directory, and
+ * backing up the wrong file would be a silent, undetectable data-loss bug.
+ */
+function resolveDbPath(): string {
+  const url = process.env.DATABASE_URL ?? "";
+  const raw = url.replace(/^file:/, "");
+  if (raw && path.isAbsolute(raw)) return raw;
+  if (raw) return path.resolve(process.cwd(), "prisma", raw);
+  return path.join(process.cwd(), "kindergarten.db");
+}
+
 function formatTimestamp(): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -21,9 +35,8 @@ export async function createBackup(): Promise<{
   try {
     await requireAdmin();
 
-    const rootDir = process.cwd();
-    const dbPath = path.join(rootDir, "kindergarten.db");
-    const backupsDir = path.join(rootDir, "Backups");
+    const dbPath = resolveDbPath();
+    const backupsDir = path.join(process.cwd(), "Backups");
 
     await fs.mkdir(backupsDir, { recursive: true });
 
