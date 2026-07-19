@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth, validatePositiveNumber, validateRequiredString } from "./validation";
+import { requireAuth, requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
 
 interface CreateRevenueInput {
@@ -90,7 +90,10 @@ export async function getRevenueSummary(year: number) {
 }
 
 export async function getDashboardStats() {
-  await requireAuth();
+  // Admin-only: this is the school-wide financial KPI surface. proxy.ts already
+  // redirects non-admins away from "/", but gating the action too keeps the
+  // data safe even if the action is ever imported onto a teacher-facing page.
+  await requireAdmin();
 
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
@@ -110,9 +113,14 @@ export async function getDashboardStats() {
   });
   const currentAcademicYear = academicYearGroups[0]?.academicYear;
 
+  const yearStudentFilter = currentAcademicYear
+    ? { student: { academicYear: currentAcademicYear } }
+    : {};
+
   const [
     totalExpected,
     receivedThisMonth,
+    collectedThisYear,
     outstandingResult,
     expensesThisMonth,
   ] = await Promise.all([
@@ -123,15 +131,28 @@ export async function getDashboardStats() {
       _sum: { amount: true },
       where: {
         transactionType: "Charge",
-        ...(currentAcademicYear && { student: { academicYear: currentAcademicYear } }),
+        ...yearStudentFilter,
       },
     }),
+    // "Received this month" -- net of same-month cancellations. A payment taken
+    // and canceled in the same month writes a +Payment and a -Cancellation
+    // revenue row; counting only "Payment" would overstate the month's intake.
     prisma.revenue.aggregate({
       _sum: { amount: true },
       where: {
         year: currentYear,
         month: currentMonth,
-        source: "Payment",
+        source: { in: ["Payment", "Cancellation"] },
+      },
+    }),
+    // Collected FOR THE YEAR (payments net of reversals), same student scope as
+    // totalExpected, so collectionRate compares like with like. Payments are
+    // stored negative and reversals positive, so their sum is negated below.
+    prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        transactionType: { in: ["Payment", "Reversal"] },
+        ...yearStudentFilter,
       },
     }),
     // Outstanding balance is total receivables right now, from anyone --
@@ -151,11 +172,15 @@ export async function getDashboardStats() {
 
   const expectedIncome = roundMoney(totalExpected._sum.amount ?? 0);
   const receivedIncome = roundMoney(receivedThisMonth._sum.amount ?? 0);
+  const collectedThisYearAmount = roundMoney(-(collectedThisYear._sum.amount ?? 0));
   // Not clamped to 0: a negative balance is a real net credit (prepaid
   // families), and hiding it as "0.00" would misrepresent the school's
   // actual receivables on a KPI meant to be trusted at a glance.
   const outstandingBalance = roundMoney(outstandingResult._sum.amount ?? 0);
-  const collectionRate = expectedIncome > 0 ? (receivedIncome / expectedIncome) * 100 : 0;
+  // Collection rate = collected / charged for the current year (both same
+  // scope). The old form divided this-month revenue by the whole year's
+  // charges, so it always read as a tiny fraction of the true rate.
+  const collectionRate = expectedIncome > 0 ? (collectedThisYearAmount / expectedIncome) * 100 : 0;
   const totalExpenses = roundMoney(expensesThisMonth._sum.amount ?? 0);
 
   return {

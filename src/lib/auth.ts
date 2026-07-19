@@ -30,6 +30,12 @@ export function verifyRoleCookie(raw: string | undefined): AuthRole | null {
   if (role !== "admin" && role !== "teacher") return null;
   if (!signature) return null;
 
+  // Fail closed for admin when no ADMIN_PASSWORD is configured: the signing
+  // key then falls back to a public constant, so an "admin" cookie would be
+  // forgeable. adminLogin already refuses to authenticate in that state, so
+  // no legitimate admin cookie exists to reject -- only forged ones.
+  if (role === "admin" && !process.env.ADMIN_PASSWORD) return null;
+
   const expected = sign(role);
   const sigBuf = Buffer.from(signature, "hex");
   const expectedBuf = Buffer.from(expected, "hex");
