@@ -157,12 +157,14 @@ function getLastSegment(n: number): number {
     if (remainder % 100 === 0) return remainder; // exact hundreds
     return remainder % 100; // 1-99
   }
-  // n is multiple of 1000
-  const thousands = n / 1000;
-  if (thousands <= 10) return n; // 1000-10000: treat as single segment
-  const lastThousandRemainder = thousands % 100;
-  if (lastThousandRemainder === 0) return 100; // exact hundred thousand
-  return lastThousandRemainder;
+  // n is a pure multiple of 1000: the last spoken word is ألف/آلاف/ألفاً, after
+  // which the counted currency noun is مضاف إليه and always takes the SINGULAR
+  // form ("أحد عشر ألفاً دينار أردني", never "...ديناراً أردنياً"). Return a
+  // value outside the plural (3-10) and accusative (11-99) ranges so
+  // buildCurrencyString selects the singular.
+  // (The wording of the thousands themselves above 99,999 -- e.g. "مائة ألف" --
+  // is out of range for any real kindergarten amount and left as-is.)
+  return 1000;
 }
 
 interface CurrencyNounForms {

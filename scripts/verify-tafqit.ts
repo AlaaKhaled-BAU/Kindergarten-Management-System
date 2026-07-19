@@ -17,6 +17,8 @@ const cases: [number, string][] = [
   [1234.5, "ألف و مئتان و أربعة و ثلاثون ديناراً أردنياً و خمسمائة فلس"],
   [500.005, "خمسمائة دينار أردني و خمسة فلوس"],
   [1.9995, "ديناران أردنيان"], // fils rounds to 1000 -> carries into dinars
+  [11000, "أحد عشر ألفاً دينار أردني"], // exact thousands: noun is مضاف إليه (singular), not accusative
+  [11050, "أحد عشر ألفاً و خمسون ديناراً أردنياً"], // trailing 50 still takes accusative
 ];
 
 for (const [amount, expected] of cases) {
