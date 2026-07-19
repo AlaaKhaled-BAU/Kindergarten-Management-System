@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { processPayment, cancelReceipt } from "@/app/actions/payment-actions";
@@ -99,7 +100,7 @@ export function PaymentsPageClient({
       setOpen(false);
       router.refresh();
     } catch (err) {
-      setPaymentError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+      setPaymentError(errorMessage(err));
     } finally {
       setPending(false);
     }
@@ -128,7 +129,7 @@ export function PaymentsPageClient({
       setSelectedReceipt(null);
       router.refresh();
     } catch (err) {
-      setCancelError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+      setCancelError(errorMessage(err));
     } finally {
       setPending(false);
     }

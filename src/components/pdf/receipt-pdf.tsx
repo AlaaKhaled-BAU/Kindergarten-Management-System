@@ -4,25 +4,9 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
 } from "@react-pdf/renderer";
 import { numberToArabicWords, splitDinarFils } from "@/lib/tafqit";
-
-// .ttf, not .woff2: fontkit's WOFF2 loca-table reconstruction produces
-// corrupted glyph offsets for this font (confirmed via direct fontkit
-// inspection -- glyph 1084's loca entries came back near the uint32
-// boundary, ~4.29 billion, vs fonttools' correctly-decoded ~50000),
-// crashing subset.encode() on any Arabic text with "Offset is outside
-// the bounds of the DataView". The browser's native woff2 decoder (used
-// for the on-screen/print CSS @font-face in globals.css) is unaffected;
-// only react-pdf's fontkit-based PDF font embedding needs the .ttf.
-Font.register({
-  family: "Scheherazade New",
-  fonts: [
-    { src: "/fonts/scheherazade-400.ttf", fontWeight: 400 },
-    { src: "/fonts/scheherazade-700.ttf", fontWeight: 700 },
-  ],
-});
+import "./fonts"; // registers "Scheherazade New" (see fonts.ts for the .ttf-vs-woff2 reason)
 
 const styles = StyleSheet.create({
   page: {

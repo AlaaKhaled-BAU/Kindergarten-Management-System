@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createRevenue, updateRevenue, deleteRevenue } from "@/app/actions/revenue-actions";
@@ -29,10 +30,6 @@ interface Revenue {
   description: string | null;
   recordDate: string;
   source: string | null;
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "حدث خطأ غير متوقع";
 }
 
 export function RevenuesPageClient({

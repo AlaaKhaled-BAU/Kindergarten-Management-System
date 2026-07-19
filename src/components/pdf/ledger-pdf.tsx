@@ -4,20 +4,10 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
 } from "@react-pdf/renderer";
 import { formatDinarAmount } from "@/lib/tafqit";
 import { gradeLabel } from "@/lib/grades";
-
-// .ttf not .woff2 -- see the comment in receipt-pdf.tsx: fontkit's WOFF2
-// decoder corrupts this font's loca table and crashes on Arabic text.
-Font.register({
-  family: "Scheherazade New",
-  fonts: [
-    { src: "/fonts/scheherazade-400.ttf", fontWeight: 400 },
-    { src: "/fonts/scheherazade-700.ttf", fontWeight: 700 },
-  ],
-});
+import "./fonts"; // registers "Scheherazade New" (see fonts.ts for the .ttf-vs-woff2 reason)
 
 const KG_NAME = "روضة صناع الفكر";
 

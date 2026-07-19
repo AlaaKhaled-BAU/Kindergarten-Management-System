@@ -15,3 +15,13 @@ export function cn(...inputs: ClassValue[]) {
 export function roundMoney(amount: number): number {
   return Math.round(amount * 1000) / 1000
 }
+
+/**
+ * Normalizes an unknown thrown value to a user-facing Arabic message. Server
+ * Actions throw Error with an Arabic message; anything else falls back to a
+ * generic notice. Centralized so the fallback wording lives in one place
+ * instead of being copy-pasted at every catch site.
+ */
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "حدث خطأ غير متوقع"
+}

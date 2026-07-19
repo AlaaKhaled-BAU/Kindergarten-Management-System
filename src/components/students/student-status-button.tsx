@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setStudentActive } from "@/app/actions/student-actions";
@@ -32,7 +33,7 @@ export function StudentStatusButton({
       setOpen(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+      setError(errorMessage(err));
     } finally {
       setPending(false);
     }

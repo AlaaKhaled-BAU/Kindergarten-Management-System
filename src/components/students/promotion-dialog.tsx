@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -53,7 +54,7 @@ export function PromotionDialog() {
       const list = await getPromotionCandidates(sourceGrade, sourceYear);
       setCandidates(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+      setError(errorMessage(err));
     } finally {
       setPending(false);
     }
@@ -67,7 +68,7 @@ export function PromotionDialog() {
       setResults(res);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+      setError(errorMessage(err));
     } finally {
       setPending(false);
     }

@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createExpense, updateExpense, deleteExpense } from "@/app/actions/expense-actions";
@@ -30,10 +31,6 @@ interface Expense {
   expenseDate: string;
   vendor: string | null;
   referenceNumber: string | null;
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "حدث خطأ غير متوقع";
 }
 
 export function ExpensesPageClient({
