@@ -88,7 +88,10 @@ Considered and deliberately **not** building this pass (documented, not silently
 
 ## Explicitly deferred (flagged, not fixed here)
 
-- **All money fields are `Float`.** Real cumulative floating-point drift risk for an immutable, append-only, SUM-based ledger. Fixing this properly means migrating every money column to integer fils (or `Decimal`), touching nearly every file — too large and risky to do unprompted inside this pass. Mitigation planned for this pass (not yet applied as of this writing — flagged by adversarial review that the original wording here wrongly implied it already existed): add a shared `roundMoney()` helper and use it at every sum/aggregate site to stop drift from compounding. Full migration recommended as a deliberate, separately-scoped follow-up.
+- **All money fields are `Float`.** Real cumulative floating-point drift risk for an immutable, append-only, SUM-based ledger. Fixing this properly means migrating every money column to integer fils (or `Decimal`), touching nearly every file — too large and risky to do unprompted inside this pass. **Mitigation applied**: `roundMoney()` (src/lib/utils.ts) is now used at every sum/aggregate/running-balance site. Full migration to integer fils/Decimal still recommended as a deliberate, separately-scoped follow-up — this mitigation only stops drift from compounding, it doesn't eliminate the underlying imprecision.
+- **`StudentFee`, `Student.globalId`, `Student.siblingGlobalId`.** Confirmed dead (zero writes anywhere) and left in place rather than dropped — removing them means a schema migration touching live data, for zero functional gain, this late in the pass. Safe to remove in a follow-up.
+- **`@react-pdf/textkit` direct dependency.** Possibly redundant (only referenced by the postinstall patch script, not imported directly), left in place — the patch script's assumptions about which version it's patching weren't worth risking this late.
+- **Currency format (screen `500.00 د.أ` vs PDF `500 دينار و 50 فلس`).** Confirmed each is internally consistent within its own context; left as two deliberate, distinct conventions rather than unifying them.
 
 ---
 
@@ -99,3 +102,25 @@ Considered and deliberately **not** building this pass (documented, not silently
 3. P2 polish.
 4. P3 deletions + the 3 enhancements.
 5. Validate: `npm run lint`, `npx tsc --noEmit`, manual QA pass via `/qa` and `/design-review` against the running dev server, then a final doc/changelog pass.
+
+---
+
+## Post-execution addendum: the critical finding this plan missed
+
+Everything above was written *before* execution started. One bug turned out to be more severe than anything in the original P0 list, and was only found by actually clicking "download" on a receipt in the running app, not by reading code:
+
+**PDF generation crashed on any Arabic text at all**, in every one of the app's 3 PDF documents (receipt, student ledger, monthly summary — all of Phase 6). `fontkit`'s WOFF2 decoder corrupts the Scheherazade New font's internal glyph table (confirmed via direct fontkit inspection — a `loca` table offset came back as ~4.29 billion, near the uint32 wraparound boundary, instead of the correct ~50,000 that an independent decoder (`fonttools`) reads from the exact same file). This means every receipt, every ledger statement, every monthly report has been unprintable since Phase 6 was marked complete — the printing feature this whole ERP exists partly to provide never actually worked once real Arabic content was involved. Fixed by converting the font to `.ttf` (bypassing the buggy WOFF2 path entirely) and verified by decoding and visually reading an actual generated receipt PDF. Full detail in the P0-2 fix commit.
+
+This is the clearest argument in the whole audit for **why live-clicking the app matters as much as reading the code**: static analysis, however thorough, would not have caught this — the bug only manifests when `@react-pdf/renderer` actually tries to embed a real glyph.
+
+## Final status (end of this session)
+
+**All P0 items shipped and live-verified** against the running dev server (not just typechecked) — login/role security, tafqit money-in-words, dashboard scoping, the packaged-app startup fix, delete confirmations, form error/pending states, and the PDF font crash above.
+
+**P1/P2 shipped**: createdBy audit trail, logger race fix, Excel formula-injection guard, missing indexes migration, `getDefaultTuition` academicYear bug, RTL Select-label bug (found while building the promotion UI — `Select` was silently showing raw values like "KG1" instead of "روضة أولى" after any selection, across every grade dropdown in the app), balance-color inversion (money owed was shown green, credit shown red), duplicate mobile-nav close button, `.env.example`, port mismatch, `components.json` RTL flag.
+
+**Enhancements built and live-tested**: minimal Refund flow, student deactivate/reactivate, and — found to be completely missing while testing, not in the original plan — a **grade promotion UI** (`promoteStudents` is one of AGENTS.md's four canonical Ledger Pattern operations and had zero UI entry point anywhere; a kindergarten had no way to promote a class to the next year through the app at all).
+
+**Cleanup shipped**: dropdown-menu.tsx/table.tsx/tailwind.config.ts deleted, unused deps removed, dead Geist font import removed, `src/lib/grades.ts` consolidating 6 duplicate grade-label maps. Also fixed a live, self-inflicted bug in `scripts/patch-react-pdf.js`'s own idempotency check (its marker-string check never matched what it actually wrote, so every `npm install` after the first reported `[patch] FAILED` on an already-correctly-patched file).
+
+**Deliberately not done** (see "Explicitly deferred" above): Float→Decimal/integer-fils migration, dropping the 3 confirmed-dead schema fields, `@react-pdf/textkit` dependency verification.
