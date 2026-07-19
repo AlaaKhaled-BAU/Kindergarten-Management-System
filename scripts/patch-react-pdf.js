@@ -18,7 +18,13 @@ if (!fs.existsSync(textkitPath)) {
 
 let code = fs.readFileSync(textkitPath, "utf-8");
 
-if (code.includes("/* PATCHED: reorderLine no-op */")) {
+// Substring only (not the full comment) -- must match whatever prefix is
+// common to this check AND the marker actually written below, or this
+// idempotency guard silently never fires and every run after the first
+// falls through to the oldFn match, which fails because the file is
+// already patched. (That's exactly what happened here: the two strings
+// had drifted apart.)
+if (code.includes("PATCHED: reorderLine no-op")) {
   console.log("[patch] Already patched, skipping.");
   process.exit(0);
 }

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
+import { getDefaultTuition } from "./student-actions";
 
 interface PromotionResult {
   oldStudentId: number;
@@ -102,15 +103,8 @@ export async function promoteStudents(
           });
         }
 
-        const newTuition = await tx.fee.findFirst({
-          where: {
-            applicableGrade: newGrade,
-            isActive: true,
-            feeType: "Monthly",
-          },
-          orderBy: { amount: "asc" },
-        });
-        const tuitionAmount = oldStudent.tuitionOverride ?? newTuition?.amount ?? 0;
+        const defaultTuition = await getDefaultTuition(tx, newGrade, newAcademicYear);
+        const tuitionAmount = oldStudent.tuitionOverride ?? defaultTuition;
 
         if (tuitionAmount > 0) {
           await tx.transaction.create({

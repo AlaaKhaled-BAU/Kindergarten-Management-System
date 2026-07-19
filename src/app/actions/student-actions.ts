@@ -115,7 +115,7 @@ export async function createStudent(input: CreateStudentInput) {
       }
     }
 
-    const tuitionAmount = tuitionOverride ?? await getDefaultTuition(tx, input.grade);
+    const tuitionAmount = tuitionOverride ?? await getDefaultTuition(tx, input.grade, input.academicYear);
     if (tuitionAmount > 0) {
       await tx.transaction.create({
         data: {
@@ -180,10 +180,11 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
     const newDiscountValue = input.discountValue ?? current.discountValue;
     const newDiscountIsPercent = input.discountIsPercent ?? current.discountIsPercent;
     const newGrade = input.grade ?? current.grade;
+    const newAcademicYear = input.academicYear ?? current.academicYear;
     const newTuitionOverride = input.tuitionOverride !== undefined ? input.tuitionOverride : current.tuitionOverride;
 
-    const oldTuition = current.tuitionOverride ?? await getDefaultTuition(tx, current.grade);
-    const newTuition = newTuitionOverride ?? await getDefaultTuition(tx, newGrade);
+    const oldTuition = current.tuitionOverride ?? await getDefaultTuition(tx, current.grade, current.academicYear);
+    const newTuition = newTuitionOverride ?? await getDefaultTuition(tx, newGrade, newAcademicYear);
 
     const oldEffectiveDiscount = getEffectiveDiscount(
       current.discountValue,
@@ -375,13 +376,15 @@ export async function getAllStudents(filters?: {
   });
 }
 
-export async function deactivateStudent(id: number) {
-  await requireAuth();
+export async function setStudentActive(id: number, isActive: boolean) {
+  const actor = await requireAuth();
 
-  return prisma.student.update({
+  const updated = await prisma.student.update({
     where: { id },
-    data: { isActive: false },
+    data: { isActive },
   });
+  await logEvent(isActive ? "student_reactivated" : "student_deactivated", { studentId: id, actor });
+  return updated;
 }
 
 function getEffectiveDiscount(
@@ -393,11 +396,32 @@ function getEffectiveDiscount(
   return isPercent ? baseAmount * (value / 100) : value;
 }
 
-async function getDefaultTuition(
+/**
+ * Looks up the default Monthly tuition for a grade, preferring an exact
+ * academicYear match. Fee.academicYear exists precisely so a tuition
+ * increase for a new year can coexist with the old year's rate, but the
+ * original lookup ignored it and tie-broke by cheapest amount -- as soon
+ * as a second fee row existed for a grade, it could silently pick the
+ * wrong (older/cheaper) one. Falls back to any active fee for the grade
+ * if no row matches the exact year yet, rather than silently charging 0.
+ */
+export async function getDefaultTuition(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  grade: string
+  grade: string,
+  academicYear: string
 ): Promise<number> {
-  const fee = await tx.fee.findFirst({
+  const exact = await tx.fee.findFirst({
+    where: {
+      applicableGrade: grade,
+      academicYear,
+      isActive: true,
+      feeType: "Monthly",
+    },
+    orderBy: { amount: "asc" },
+  });
+  if (exact) return exact.amount;
+
+  const fallback = await tx.fee.findFirst({
     where: {
       applicableGrade: grade,
       isActive: true,
@@ -405,5 +429,5 @@ async function getDefaultTuition(
     },
     orderBy: { amount: "asc" },
   });
-  return fee?.amount ?? 0;
+  return fallback?.amount ?? 0;
 }

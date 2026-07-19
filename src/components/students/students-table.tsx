@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { createStudent } from "@/app/actions/student-actions";
 import { Plus, Search } from "lucide-react";
 
@@ -293,15 +294,9 @@ export function StudentsTable({
                     {s.balance.toFixed(2)} د.أ
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        s.isActive
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
+                    <Badge variant={s.isActive ? "default" : "secondary"}>
                       {s.isActive ? "نشط" : "غير نشط"}
-                    </span>
+                    </Badge>
                   </td>
                 </tr>
               ))

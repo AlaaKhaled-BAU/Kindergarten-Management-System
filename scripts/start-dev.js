@@ -1,7 +1,7 @@
 const { spawn } = require("child_process");
 const http = require("http");
 
-const PORT = process.env.PORT || "3000";
+const PORT = process.env.PORT || "3010";
 const URL = `http://localhost:${PORT}`;
 const MAX_ATTEMPTS = 120;
 const RETRY_MS = 1000;

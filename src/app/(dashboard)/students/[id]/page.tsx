@@ -2,7 +2,9 @@ import { getStudentById, getStudentLedger } from "@/app/actions/student-actions"
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { StudentStatusButton } from "@/components/students/student-status-button";
+import { RefundButton } from "@/components/students/refund-button";
+import { getAuthRole } from "@/lib/auth";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +22,10 @@ export default async function StudentProfilePage({
   const student = await getStudentById(studentId);
   if (!student) notFound();
 
-  const ledger = await getStudentLedger(studentId);
+  const [ledger, role] = await Promise.all([
+    getStudentLedger(studentId),
+    getAuthRole(),
+  ]);
 
   const gradeMap: Record<string, string> = {
     Pre: "بستان",
@@ -39,9 +44,7 @@ export default async function StudentProfilePage({
             {gradeMap[student.grade] ?? student.grade} — {student.academicYear}
           </p>
         </div>
-        <Badge variant={student.isActive ? "default" : "secondary"}>
-          {student.isActive ? "نشط" : "غير نشط"}
-        </Badge>
+        <StudentStatusButton studentId={student.id} isActive={student.isActive} />
       </div>
 
       <Tabs defaultValue="info">
@@ -129,8 +132,9 @@ export default async function StudentProfilePage({
 
         <TabsContent value="ledger">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">كشف الحساب</CardTitle>
+              {role === "admin" && <RefundButton studentId={student.id} />}
             </CardHeader>
             <CardContent>
               {ledger.length === 0 ? (
@@ -168,7 +172,7 @@ export default async function StudentProfilePage({
                           </td>
                           <td
                             className={`py-2 px-3 text-end font-medium ${
-                              t.runningBalance >= 0 ? "text-green-600" : "text-red-600"
+                              t.runningBalance > 0 ? "text-orange-600" : "text-green-600"
                             }`}
                           >
                             {t.runningBalance.toFixed(2)} د.أ

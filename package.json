@@ -58,8 +58,6 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
-    "@fontsource/cairo": "^5",
-    "@fontsource/scheherazade-new": "^5",
     "@prisma/client": "^6.19.3",
     "@react-pdf/renderer": "^4.5.1",
     "@react-pdf/textkit": "^6.3.0",

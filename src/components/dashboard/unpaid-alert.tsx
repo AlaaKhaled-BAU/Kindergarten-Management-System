@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import type { UnpaidStudent } from "@/app/actions/student-actions";
+import { format } from "date-fns";
 
 const GRADE_MAP: Record<string, string> = {
   Pre: "بستان",
@@ -68,9 +69,7 @@ export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
                     <td className="py-2">{s.balance.toFixed(2)} د.أ</td>
                     <td className="py-2">
                       {s.lastPaymentDate
-                        ? new Date(s.lastPaymentDate).toLocaleDateString(
-                            "ar-EG"
-                          )
+                        ? format(new Date(s.lastPaymentDate), "dd/MM/yyyy")
                         : "—"}
                     </td>
                     <td className="py-2">
