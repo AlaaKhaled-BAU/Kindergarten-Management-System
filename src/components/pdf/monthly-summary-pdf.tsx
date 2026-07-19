@@ -8,11 +8,13 @@ import {
 } from "@react-pdf/renderer";
 import { formatDinarAmount } from "@/lib/tafqit";
 
+// .ttf not .woff2 -- see the comment in receipt-pdf.tsx: fontkit's WOFF2
+// decoder corrupts this font's loca table and crashes on Arabic text.
 Font.register({
   family: "Scheherazade New",
   fonts: [
-    { src: "/fonts/scheherazade-400.woff2", fontWeight: 400 },
-    { src: "/fonts/scheherazade-700.woff2", fontWeight: 700 },
+    { src: "/fonts/scheherazade-400.ttf", fontWeight: 400 },
+    { src: "/fonts/scheherazade-700.ttf", fontWeight: 700 },
   ],
 });
 
