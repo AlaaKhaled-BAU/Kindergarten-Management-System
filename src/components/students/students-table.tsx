@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { createStudent } from "@/app/actions/student-actions";
 import { Plus, Search } from "lucide-react";
+import { GRADES, gradeLabel } from "@/lib/grades";
 
 interface Student {
   id: number;
@@ -46,12 +47,6 @@ export function StudentsTable({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const gradeMap: Record<string, string> = {
-    Pre: "بستان",
-    KG1: "روضة أولى",
-    KG2: "روضة ثانية",
-  };
 
   const filtered = students.filter((s) => {
     if (gradeFilter !== "all" && s.grade !== gradeFilter) return false;
@@ -118,13 +113,15 @@ export function StudentsTable({
           </div>
           <Select value={gradeFilter} onValueChange={(v) => setGradeFilter(v ?? "all")}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="الصف" />
+              <SelectValue placeholder="الصف">
+                {(value: string) => (value === "all" ? "الكل" : gradeLabel(value))}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">الكل</SelectItem>
-              <SelectItem value="Pre">بستان</SelectItem>
-              <SelectItem value="KG1">روضة أولى</SelectItem>
-              <SelectItem value="KG2">روضة ثانية</SelectItem>
+              {GRADES.map((g) => (
+                <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -167,12 +164,14 @@ export function StudentsTable({
                   <Label htmlFor="grade">الصف *</Label>
                   <Select name="grade" required>
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر الصف" />
+                      <SelectValue placeholder="اختر الصف">
+                        {(value: string) => gradeLabel(value)}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pre">بستان</SelectItem>
-                      <SelectItem value="KG1">روضة أولى</SelectItem>
-                      <SelectItem value="KG2">روضة ثانية</SelectItem>
+                      {GRADES.map((g) => (
+                        <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -284,7 +283,7 @@ export function StudentsTable({
                   <td className="py-3 px-4 font-medium">
                     {s.firstName} {s.lastName}
                   </td>
-                  <td className="py-3 px-4">{gradeMap[s.grade] ?? s.grade}</td>
+                  <td className="py-3 px-4">{gradeLabel(s.grade)}</td>
                   <td className="py-3 px-4">{s.academicYear}</td>
                   <td
                     className={`py-3 px-4 text-end font-medium ${

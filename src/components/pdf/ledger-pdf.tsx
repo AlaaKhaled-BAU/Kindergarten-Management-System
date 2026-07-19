@@ -7,6 +7,7 @@ import {
   Font,
 } from "@react-pdf/renderer";
 import { formatDinarAmount } from "@/lib/tafqit";
+import { gradeLabel } from "@/lib/grades";
 
 Font.register({
   family: "Scheherazade New",
@@ -187,12 +188,6 @@ export function LedgerPdf({
   discount,
   netAmount,
 }: LedgerPdfProps) {
-  const gradeMap: Record<string, string> = {
-    Pre: "بستان",
-    KG1: "روضة أولى",
-    KG2: "روضة ثانية",
-  };
-
   const totalRows = 20;
   const dataRows = transactions;
   const emptyRows = Math.max(0, totalRows - dataRows.length);
@@ -218,7 +213,7 @@ export function LedgerPdf({
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>الصف:</Text>
-              <Text style={styles.infoValue}>{gradeMap[grade] ?? grade}</Text>
+              <Text style={styles.infoValue}>{gradeLabel(grade)}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>الشعبة:</Text>

@@ -171,3 +171,29 @@ export async function promoteStudents(
 
   return results;
 }
+
+/**
+ * Active students matching a grade+year, for previewing a batch promotion
+ * before running it (promoteStudents itself has no UI entry point without
+ * this -- a kindergarten has no way to promote a whole grade cohort at
+ * year-end otherwise).
+ */
+export async function getPromotionCandidates(grade: string, academicYear: string) {
+  await requireAdmin();
+  return prisma.student.findMany({
+    where: { grade, academicYear, isActive: true },
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: { lastName: "asc" },
+  });
+}
+
+export async function promoteGrade(
+  sourceGrade: string,
+  sourceAcademicYear: string,
+  newGrade: string,
+  newAcademicYear: string
+): Promise<PromotionResult[]> {
+  await requireAdmin();
+  const candidates = await getPromotionCandidates(sourceGrade, sourceAcademicYear);
+  return promoteStudents(candidates.map((s) => s.id), newAcademicYear, newGrade);
+}

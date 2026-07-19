@@ -19,6 +19,7 @@ import {
 import { LedgerPdf } from "@/components/pdf/ledger-pdf";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { Search } from "lucide-react";
+import { GRADES, gradeLabel } from "@/lib/grades";
 
 interface StudentOption {
   id: number;
@@ -33,12 +34,6 @@ export function ReportTabLedger() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [pdfData, setPdfData] = useState<LedgerPdfData | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const gradeMap: Record<string, string> = {
-    Pre: "بستان",
-    KG1: "روضة أولى",
-    KG2: "روضة ثانية",
-  };
 
   useEffect(() => {
     getAllStudents({ isActive: true }).then((list) => {
@@ -98,13 +93,15 @@ export function ReportTabLedger() {
           </div>
           <Select value={gradeFilter} onValueChange={(v) => setGradeFilter(v ?? "all")}>
             <SelectTrigger className="w-36">
-              <SelectValue placeholder="الصف" />
+              <SelectValue placeholder="الصف">
+                {(value: string) => (value === "all" ? "الكل" : gradeLabel(value))}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">الكل</SelectItem>
-              <SelectItem value="Pre">بستان</SelectItem>
-              <SelectItem value="KG1">روضة أولى</SelectItem>
-              <SelectItem value="KG2">روضة ثانية</SelectItem>
+              {GRADES.map((g) => (
+                <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -127,7 +124,7 @@ export function ReportTabLedger() {
               >
                 <span>{s.label}</span>
                 <span className="text-muted-foreground me-2">
-                  ({gradeMap[s.grade] ?? s.grade})
+                  ({gradeLabel(s.grade)})
                 </span>
               </button>
             ))

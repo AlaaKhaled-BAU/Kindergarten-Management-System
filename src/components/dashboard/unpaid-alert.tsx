@@ -12,12 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import type { UnpaidStudent } from "@/app/actions/student-actions";
 import { format } from "date-fns";
-
-const GRADE_MAP: Record<string, string> = {
-  Pre: "بستان",
-  KG1: "روضة أولى",
-  KG2: "روضة ثانية",
-};
+import { gradeLabel } from "@/lib/grades";
 
 export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
   if (students.length === 0) return null;
@@ -65,7 +60,7 @@ export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
                 {students.map((s) => (
                   <tr key={s.id} className="border-b">
                     <td className="py-2">{s.name}</td>
-                    <td className="py-2">{GRADE_MAP[s.grade] ?? s.grade}</td>
+                    <td className="py-2">{gradeLabel(s.grade)}</td>
                     <td className="py-2">{s.balance.toFixed(2)} د.أ</td>
                     <td className="py-2">
                       {s.lastPaymentDate

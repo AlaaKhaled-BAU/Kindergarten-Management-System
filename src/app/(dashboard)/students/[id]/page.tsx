@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentStatusButton } from "@/components/students/student-status-button";
 import { RefundButton } from "@/components/students/refund-button";
 import { getAuthRole } from "@/lib/auth";
+import { gradeLabel } from "@/lib/grades";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -27,11 +28,6 @@ export default async function StudentProfilePage({
     getAuthRole(),
   ]);
 
-  const gradeMap: Record<string, string> = {
-    Pre: "بستان",
-    KG1: "روضة أولى",
-    KG2: "روضة ثانية",
-  };
 
   return (
     <div className="space-y-6">
@@ -41,7 +37,7 @@ export default async function StudentProfilePage({
             {student.firstName} {student.lastName}
           </h1>
           <p className="text-muted-foreground">
-            {gradeMap[student.grade] ?? student.grade} — {student.academicYear}
+            {gradeLabel(student.grade)} — {student.academicYear}
           </p>
         </div>
         <StudentStatusButton studentId={student.id} isActive={student.isActive} />
@@ -60,7 +56,7 @@ export default async function StudentProfilePage({
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <InfoRow label="الاسم الكامل" value={`${student.firstName} ${student.lastName}`} />
-              <InfoRow label="الصف" value={gradeMap[student.grade] ?? student.grade} />
+              <InfoRow label="الصف" value={gradeLabel(student.grade)} />
               <InfoRow label="السنة الدراسية" value={student.academicYear} />
               <InfoRow
                 label="تاريخ الميلاد"
