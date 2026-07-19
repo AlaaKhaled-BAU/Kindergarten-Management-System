@@ -101,7 +101,10 @@ function createWindow() {
   }
 
   mainWindow.webContents.on("did-fail-load", () => {
-    if (!serverProcess && !isDev) {
+    // mainWindow may already be null (closed) or its webContents torn down if
+    // the load fails as the user quits -- loadURL would then throw in the main
+    // process. Guard before touching it.
+    if (!serverProcess && !isDev && mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadURL(
         `data:text/html;charset=utf-8,${encodeURIComponent(
           '<body style="font-family:sans-serif;direction:rtl;text-align:center;padding:60px"><h2>تعذر تشغيل الخادم الداخلي</h2><p>الرجاء إعادة تشغيل البرنامج. إذا استمرت المشكلة، تواصل مع الدعم الفني.</p></body>'
