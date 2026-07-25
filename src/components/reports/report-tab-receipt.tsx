@@ -5,13 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getReceipts } from "@/app/actions/payment-actions";
-import {
-  generateReceiptPdf,
-  type ReceiptPdfData,
-} from "@/app/actions/pdf-actions";
-import { ReceiptPdf } from "@/components/pdf/receipt-pdf";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { Search } from "lucide-react";
+import { Search, Printer } from "lucide-react";
 
 interface ReceiptOption {
   id: number;
@@ -22,8 +16,6 @@ export function ReportTabReceipt() {
   const [receipts, setReceipts] = useState<ReceiptOption[]>([]);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [pdfData, setPdfData] = useState<ReceiptPdfData | null>(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getReceipts().then((list) => {
@@ -44,23 +36,10 @@ export function ReportTabReceipt() {
     return receipts.filter((r) => r.label.toLowerCase().includes(q));
   }, [receipts, search]);
 
-  async function handleSelect(id: number) {
-    setSelectedId(id);
-    setLoading(true);
-    try {
-      const data = await generateReceiptPdf(id);
-      setPdfData(data);
-    } catch {
-      setPdfData(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>تحميل سند قبض</CardTitle>
+        <CardTitle>طباعة سند قبض</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="relative">
@@ -71,7 +50,6 @@ export function ReportTabReceipt() {
             onChange={(e) => {
               setSearch(e.target.value);
               setSelectedId(null);
-              setPdfData(null);
             }}
             className="pe-9"
           />
@@ -86,7 +64,7 @@ export function ReportTabReceipt() {
             filtered.slice(0, 50).map((r) => (
               <button
                 key={r.id}
-                onClick={() => handleSelect(r.id)}
+                onClick={() => setSelectedId(r.id)}
                 className={`w-full text-start px-4 py-2.5 text-sm border-b last:border-b-0 transition-colors hover:bg-muted ${
                   selectedId === r.id
                     ? "bg-primary/10 text-primary font-medium"
@@ -99,25 +77,11 @@ export function ReportTabReceipt() {
           )}
         </div>
 
-        {loading && (
-          <p className="text-sm text-muted-foreground">جاري تحميل البيانات...</p>
-        )}
-
-        {pdfData && !loading && (
-          <PDFDownloadLink
-            document={<ReceiptPdf {...pdfData} />}
-            fileName={`receipt-${String(pdfData.receiptNumber).padStart(5, "0")}.pdf`}
-          >
-            {({ loading: pdfLoading }) =>
-              pdfLoading ? (
-                <span className="text-sm text-muted-foreground">
-                  جاري إنشاء الملف...
-                </span>
-              ) : (
-                <Button className="w-full">تحميل سند القبض</Button>
-              )
-            }
-          </PDFDownloadLink>
+        {selectedId && (
+          <Button className="w-full" onClick={() => window.open(`/print/receipt/${selectedId}`, "_blank")}>
+            <Printer className="me-2 size-4" />
+            طباعة / حفظ سند القبض
+          </Button>
         )}
       </CardContent>
     </Card>

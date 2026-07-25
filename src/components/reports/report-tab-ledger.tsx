@@ -12,13 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getAllStudents } from "@/app/actions/student-actions";
-import {
-  generateLedgerPdf,
-  type LedgerPdfData,
-} from "@/app/actions/pdf-actions";
-import { LedgerPdf } from "@/components/pdf/ledger-pdf";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { Search } from "lucide-react";
+import { Search, Printer } from "lucide-react";
 import { GRADES, gradeLabel } from "@/lib/grades";
 
 interface StudentOption {
@@ -32,8 +26,6 @@ export function ReportTabLedger() {
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [pdfData, setPdfData] = useState<LedgerPdfData | null>(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getAllStudents({ isActive: true }).then((list) => {
@@ -58,23 +50,10 @@ export function ReportTabLedger() {
     return result;
   }, [students, search, gradeFilter]);
 
-  async function handleSelect(id: number) {
-    setSelectedId(id);
-    setLoading(true);
-    try {
-      const data = await generateLedgerPdf(id);
-      setPdfData(data);
-    } catch {
-      setPdfData(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>تحميل كشف حساب طالب</CardTitle>
+        <CardTitle>طباعة كشف حساب طالب</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
@@ -86,7 +65,6 @@ export function ReportTabLedger() {
               onChange={(e) => {
                 setSearch(e.target.value);
                 setSelectedId(null);
-                setPdfData(null);
               }}
               className="pe-9"
             />
@@ -115,7 +93,7 @@ export function ReportTabLedger() {
             filtered.slice(0, 50).map((s) => (
               <button
                 key={s.id}
-                onClick={() => handleSelect(s.id)}
+                onClick={() => setSelectedId(s.id)}
                 className={`w-full text-start px-4 py-2.5 text-sm border-b last:border-b-0 transition-colors hover:bg-muted ${
                   selectedId === s.id
                     ? "bg-primary/10 text-primary font-medium"
@@ -131,25 +109,11 @@ export function ReportTabLedger() {
           )}
         </div>
 
-        {loading && (
-          <p className="text-sm text-muted-foreground">جاري تحميل البيانات...</p>
-        )}
-
-        {pdfData && !loading && (
-          <PDFDownloadLink
-            document={<LedgerPdf {...pdfData} />}
-            fileName={`ledger-${pdfData.studentName.replace(/\s+/g, "-")}.pdf`}
-          >
-            {({ loading: pdfLoading }) =>
-              pdfLoading ? (
-                <span className="text-sm text-muted-foreground">
-                  جاري إنشاء الملف...
-                </span>
-              ) : (
-                <Button className="w-full">تحميل كشف الحساب</Button>
-              )
-            }
-          </PDFDownloadLink>
+        {selectedId && (
+          <Button className="w-full" onClick={() => window.open(`/print/ledger/${selectedId}`, "_blank")}>
+            <Printer className="me-2 size-4" />
+            طباعة / حفظ كشف الحساب
+          </Button>
         )}
       </CardContent>
     </Card>
