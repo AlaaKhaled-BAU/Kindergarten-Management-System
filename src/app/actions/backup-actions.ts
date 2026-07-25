@@ -36,7 +36,8 @@ export async function createBackup(): Promise<{
     await requireAdmin();
 
     const dbPath = resolveDbPath();
-    const backupsDir = path.join(process.cwd(), "Backups");
+    // Same reasoning as logger.ts: install directory can be read-only.
+    const backupsDir = path.join(process.env.KG_DATA_DIR ?? process.cwd(), "Backups");
 
     await fs.mkdir(backupsDir, { recursive: true });
 

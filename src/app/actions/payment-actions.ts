@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
+import { getSetting } from "@/lib/settings";
 import { requireAuth, validatePositiveNumber } from "./validation";
 
 interface ProcessPaymentInput {
@@ -28,7 +29,7 @@ export async function processPayment(input: ProcessPaymentInput) {
       where: { id: input.studentId },
     });
 
-    const kgName = process.env.KG_NAME ?? "الروضة";
+    const kgName = (await getSetting("kindergartenName")) ?? "الروضة";
 
     const maxReceipt = await tx.receipt.aggregate({
       _max: { receiptNumber: true },

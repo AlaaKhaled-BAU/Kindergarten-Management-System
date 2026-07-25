@@ -3,14 +3,8 @@
 import { setAuthCookie } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { logEvent } from "@/lib/logger";
-import { timingSafeEqual } from "node:crypto";
-
-function timingSafePasswordEqual(a: string, b: string): boolean {
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  if (aBuf.length !== bBuf.length) return false;
-  return timingSafeEqual(aBuf, bBuf);
-}
+import { getSetting } from "@/lib/settings";
+import { verifyPassword } from "@/lib/password";
 
 interface LoginState {
   error?: string;
@@ -26,12 +20,12 @@ export async function adminLogin(
     return { error: "الرجاء إدخال كلمة المرور" };
   }
 
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) {
-    return { error: "خطأ في إعدادات النظام: كلمة مرور المسؤول غير معرفة" };
+  const storedHash = await getSetting("adminPasswordHash");
+  if (!storedHash) {
+    return { error: "خطأ في إعدادات النظام: لم يتم إعداد كلمة مرور المسؤول بعد" };
   }
 
-  if (!timingSafePasswordEqual(password, adminPassword)) {
+  if (!verifyPassword(password, storedHash)) {
     return { error: "كلمة المرور غير صحيحة" };
   }
 

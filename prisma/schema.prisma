@@ -8,6 +8,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Runtime configuration (admin/teacher password hashes, cookie signing
+// secret, kindergarten name/address, current academic year). Replaces
+// build-time env vars, which Next.js inlines into the compiled server
+// bundle -- unchangeable after build and readable from the installer.
+model Setting {
+  key   String @id
+  value String
+}
+
 model Student {
   id                Int       @id @default(autoincrement())
   firstName         String

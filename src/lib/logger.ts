@@ -7,10 +7,16 @@ interface LogEntry {
   details: Record<string, unknown>;
 }
 
+// KG_DATA_DIR (set by main.js to app.getPath("userData")) keeps runtime
+// data out of the install directory, which is read-only for a normal user
+// under "C:\Program Files". Falls back to cwd for `next dev`.
+function getLogsDir(): string {
+  return path.join(process.env.KG_DATA_DIR ?? process.cwd(), "Logs");
+}
+
 function getLogPath(): string {
-  const logsDir = path.join(process.cwd(), "Logs");
   const today = new Date().toISOString().slice(0, 10);
-  return path.join(logsDir, `log_${today}.json`);
+  return path.join(getLogsDir(), `log_${today}.json`);
 }
 
 /**
@@ -26,8 +32,7 @@ export async function logEvent(
   details: Record<string, unknown>
 ): Promise<void> {
   try {
-    const logsDir = path.join(process.cwd(), "Logs");
-    await fs.mkdir(logsDir, { recursive: true });
+    await fs.mkdir(getLogsDir(), { recursive: true });
 
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),

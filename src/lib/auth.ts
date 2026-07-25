@@ -1,42 +1,37 @@
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { getSetting } from "./settings";
 
 export type AuthRole = "admin" | "teacher";
 
 const COOKIE_NAME = "auth_role";
 
-function getSigningKey(): string {
-  return process.env.ADMIN_PASSWORD ?? "insecure-fallback-key";
+async function sign(role: string): Promise<string> {
+  // cookieSecret is generated once (random, DB-stored) the first time
+  // settings.ts initializes -- always present by the time any cookie needs
+  // signing or verifying. No password-derived or hardcoded fallback key.
+  const key = await getSetting("cookieSecret");
+  return createHmac("sha256", key!).update(role).digest("hex");
 }
 
-function sign(role: string): string {
-  return createHmac("sha256", getSigningKey()).update(role).digest("hex");
-}
-
-function signRoleCookie(role: AuthRole): string {
-  return `${role}.${sign(role)}`;
+async function signRoleCookie(role: AuthRole): Promise<string> {
+  return `${role}.${await sign(role)}`;
 }
 
 /**
  * Verifies a raw "auth_role" cookie value against its HMAC signature, so
  * editing the cookie value (e.g. teacher -> admin) in devtools no longer
  * works — httpOnly alone only stops JS from reading it, not a manual edit.
- * Pure function (no cookies() call) so both Server Actions and the
- * Node-runtime middleware share this exact verification logic.
+ * Pure-ish function (only reads the settings cache, no cookies() call) so
+ * both Server Actions and proxy.ts share this exact verification logic.
  */
-export function verifyRoleCookie(raw: string | undefined): AuthRole | null {
+export async function verifyRoleCookie(raw: string | undefined): Promise<AuthRole | null> {
   if (!raw) return null;
   const [role, signature] = raw.split(".");
   if (role !== "admin" && role !== "teacher") return null;
   if (!signature) return null;
 
-  // Fail closed for admin when no ADMIN_PASSWORD is configured: the signing
-  // key then falls back to a public constant, so an "admin" cookie would be
-  // forgeable. adminLogin already refuses to authenticate in that state, so
-  // no legitimate admin cookie exists to reject -- only forged ones.
-  if (role === "admin" && !process.env.ADMIN_PASSWORD) return null;
-
-  const expected = sign(role);
+  const expected = await sign(role);
   const sigBuf = Buffer.from(signature, "hex");
   const expectedBuf = Buffer.from(expected, "hex");
   if (sigBuf.length !== expectedBuf.length) return null;
@@ -47,7 +42,7 @@ export function verifyRoleCookie(raw: string | undefined): AuthRole | null {
 
 export async function setAuthCookie(role: AuthRole): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, signRoleCookie(role), {
+  cookieStore.set(COOKIE_NAME, await signRoleCookie(role), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
