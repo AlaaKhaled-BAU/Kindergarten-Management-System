@@ -1,8 +1,25 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { logEvent } from "@/lib/logger";
 import { requireAuth, requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
+
+const DERIVED_SOURCES = ["Payment", "Cancellation"];
+
+/**
+ * Payment/Cancellation revenue rows are written automatically by
+ * processPayment/cancelReceipt and must stay in lockstep with their
+ * originating receipt -- editing or deleting one here would desync the
+ * revenue ledger from what the receipts actually show.
+ */
+function assertNotDerived(source: string | null, action: string): void {
+  if (source && DERIVED_SOURCES.includes(source)) {
+    throw new Error(
+      `لا يمكن ${action} هذا السجل لأنه ناتج تلقائياً عن عملية دفع أو إلغاء إيصال`
+    );
+  }
+}
 
 interface CreateRevenueInput {
   year: number;
@@ -40,6 +57,9 @@ export async function updateRevenue(
 ) {
   await requireAuth();
 
+  const existing = await prisma.revenue.findUniqueOrThrow({ where: { id } });
+  assertNotDerived(existing.source, "تعديل");
+
   const revenue = await prisma.revenue.update({
     where: { id },
     data: {
@@ -56,9 +76,13 @@ export async function updateRevenue(
 }
 
 export async function deleteRevenue(id: number) {
-  await requireAuth();
+  const actor = await requireAuth();
+
+  const existing = await prisma.revenue.findUniqueOrThrow({ where: { id } });
+  assertNotDerived(existing.source, "حذف");
 
   await prisma.revenue.delete({ where: { id } });
+  await logEvent("revenue_deleted", { revenueId: id, actor });
 }
 
 export async function getRevenues(filters?: {
@@ -126,11 +150,16 @@ export async function getDashboardStats() {
   ] = await Promise.all([
     // Expected income is a forward-looking, per-period metric -- scope it to
     // this year so it doesn't grow forever by including students who
-    // finished paying off and left years ago.
+    // finished paying off and left years ago. Includes Adjustment (fee
+    // edits, refunds) alongside Charge -- without it, a refund raises
+    // outstandingBalance (unscoped, all types) but not expectedIncome, so
+    // "expected minus collected" silently stops matching the real
+    // receivable. Verified live: a 50 JOD refund created exactly a 50 JOD
+    // gap (349.95 actual vs 299.95 computed) until Adjustment was included.
     prisma.transaction.aggregate({
       _sum: { amount: true },
       where: {
-        transactionType: "Charge",
+        transactionType: { in: ["Charge", "Adjustment"] },
         ...yearStudentFilter,
       },
     }),

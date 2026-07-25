@@ -10,6 +10,7 @@ import {
   Banknote,
   TrendingUp,
   Receipt,
+  Wallet,
   FileText,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ const navigation = [
   { name: "المدفوعات والإيصالات", href: "/payments", icon: Banknote, role: "all" },
   { name: "الإيرادات", href: "/revenues", icon: TrendingUp, role: "all" },
   { name: "المصروفات", href: "/expenses", icon: Receipt, role: "all" },
+  { name: "الرسوم الدراسية", href: "/fees", icon: Wallet, role: "admin" },
   { name: "التقارير", href: "/reports", icon: FileText, role: "admin" },
 ];
 

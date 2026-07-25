@@ -1,9 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { logEvent } from "@/lib/logger";
 import { requireAdmin, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
-import { getDefaultTuition } from "./student-actions";
+import { gradeLabel } from "@/lib/grades";
+import { getDefaultTuition, hasFeeForYear, postEnrolmentCharges } from "./student-actions";
 
 interface PromotionResult {
   oldStudentId: number;
@@ -22,6 +24,16 @@ export async function promoteStudents(
   validateRequiredString(newAcademicYear, "السنة الدراسية الجديدة");
   validateRequiredString(newGrade, "الصف الجديد");
 
+  // Refuse the whole batch upfront if nobody has priced this grade for the
+  // target year yet -- getDefaultTuition's fallback-to-any-year is fine for
+  // a single manual entry, but silently reusing last year's rate across an
+  // entire promoted cohort is exactly how B5 mis-billed every student.
+  const priced = await hasFeeForYear(prisma, newGrade, newAcademicYear);
+  if (!priced) {
+    const error = `لا توجد رسوم محددة لصف "${gradeLabel(newGrade)}" للسنة الدراسية ${newAcademicYear}. الرجاء إضافة الرسوم من صفحة "الرسوم" أولاً.`;
+    return studentIds.map((id) => ({ oldStudentId: id, newStudentId: null, oldBalance: 0, error }));
+  }
+
   const results: PromotionResult[] = [];
 
   for (const studentId of studentIds) {
@@ -39,6 +51,7 @@ export async function promoteStudents(
           where: {
             firstName: oldStudent.firstName,
             lastName: oldStudent.lastName,
+            dateOfBirth: oldStudent.dateOfBirth,
             grade: newGrade,
             academicYear: newAcademicYear,
           },
@@ -49,7 +62,7 @@ export async function promoteStudents(
             oldStudentId: studentId,
             newStudentId: null,
             oldBalance: 0,
-            error: `الطالب موجود مسبقاً في ${newGrade} - ${newAcademicYear}`,
+            error: `الطالب موجود مسبقاً في ${gradeLabel(newGrade)} - ${newAcademicYear}`,
           };
         }
 
@@ -68,6 +81,7 @@ export async function promoteStudents(
             academicYear: newAcademicYear,
             enrollmentDate: new Date(),
             isActive: true,
+            notes: oldStudent.notes,
             busFees: oldStudent.busFees,
             additionalFees: oldStudent.additionalFees,
             discountValue: oldStudent.discountValue,
@@ -103,22 +117,20 @@ export async function promoteStudents(
           });
         }
 
-        const defaultTuition = await getDefaultTuition(tx, newGrade, newAcademicYear);
-        const tuitionAmount = oldStudent.tuitionOverride ?? defaultTuition;
-
-        if (tuitionAmount > 0) {
-          await tx.transaction.create({
-            data: {
-              studentId: newStudent.id,
-              transactionType: "Charge",
-              amount: tuitionAmount,
-              transactionDate: new Date(),
-              description: "رسوم دراسية - ترقية",
-              referenceId: "Fee:Tuition:Promotion",
-              createdBy: actor,
-            },
-          });
-        }
+        const tuitionAmount = oldStudent.tuitionOverride ?? await getDefaultTuition(tx, newGrade, newAcademicYear);
+        await postEnrolmentCharges(
+          tx,
+          newStudent.id,
+          {
+            tuitionAmount,
+            busFees: oldStudent.busFees,
+            additionalFees: oldStudent.additionalFees,
+            discountValue: oldStudent.discountValue,
+            discountIsPercent: oldStudent.discountIsPercent,
+          },
+          actor,
+          true
+        );
 
         if (oldBalance !== 0) {
           await tx.transaction.create({
@@ -127,7 +139,7 @@ export async function promoteStudents(
               transactionType: "BalanceTransferOut",
               amount: -oldBalance,
               transactionDate: new Date(),
-              description: `ترقية إلى ${newGrade} - ${newAcademicYear}`,
+              description: `ترقية إلى ${gradeLabel(newGrade)} - ${newAcademicYear}`,
               referenceId: `Promotion:To:${newStudent.id}`,
               createdBy: actor,
             },
@@ -139,7 +151,7 @@ export async function promoteStudents(
               transactionType: "BalanceTransferIn",
               amount: oldBalance,
               transactionDate: new Date(),
-              description: `رصيد مرحل من ${oldStudent.grade} - ${oldStudent.academicYear}`,
+              description: `رصيد مرحل من ${gradeLabel(oldStudent.grade)} - ${oldStudent.academicYear}`,
               referenceId: `Promotion:From:${oldStudent.id}`,
               createdBy: actor,
             },
@@ -168,6 +180,14 @@ export async function promoteStudents(
       });
     }
   }
+
+  await logEvent("students_promoted", {
+    newGrade,
+    newAcademicYear,
+    actor,
+    total: studentIds.length,
+    succeeded: results.filter((r) => !r.error).length,
+  });
 
   return results;
 }

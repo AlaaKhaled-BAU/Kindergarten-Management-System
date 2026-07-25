@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { getSetting } from "@/lib/settings";
@@ -19,15 +20,49 @@ interface CancelReceiptInput {
   reason: string;
 }
 
+/**
+ * Two staff issuing receipts at the same moment can both read the same
+ * MAX(receiptNumber) before either commits -- whichever writes second hits
+ * Receipt.receiptNumber's unique constraint. Retrying with a fresh MAX read
+ * is simpler and just as effective as a dedicated counter table for the
+ * handful of concurrent users a kindergarten office actually has.
+ */
+const MAX_RECEIPT_ATTEMPTS = 3;
+
+function isReceiptNumberCollision(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === "P2002" &&
+    String((err.meta?.target as string[] | string | undefined) ?? "").includes("receiptNumber")
+  );
+}
+
 export async function processPayment(input: ProcessPaymentInput) {
   const actor = await requireAuth();
 
   validatePositiveNumber(input.amount, "المبلغ");
 
+  for (let attempt = 1; attempt <= MAX_RECEIPT_ATTEMPTS; attempt++) {
+    try {
+      return await attemptProcessPayment(input, actor);
+    } catch (err) {
+      if (isReceiptNumberCollision(err) && attempt < MAX_RECEIPT_ATTEMPTS) continue;
+      throw err;
+    }
+  }
+  // Unreachable: the loop above always either returns or throws.
+  throw new Error("تعذر إصدار الإيصال، الرجاء المحاولة مرة أخرى");
+}
+
+async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) {
   return prisma.$transaction(async (tx) => {
     const student = await tx.student.findUniqueOrThrow({
       where: { id: input.studentId },
     });
+
+    if (!student.isActive) {
+      throw new Error("لا يمكن تسجيل دفعة لطالب غير نشط");
+    }
 
     const kgName = (await getSetting("kindergartenName")) ?? "الروضة";
 

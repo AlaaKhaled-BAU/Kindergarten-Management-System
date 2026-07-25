@@ -33,13 +33,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // "/" is the financial KPI dashboard, and /print renders the same
-  // admin-only reports (receipts/ledgers/monthly summaries) as plain HTML
-  // for printing — same gate as /reports.
-  if (
-    (path === "/" || path.startsWith("/reports") || path.startsWith("/print")) &&
-    role !== "admin"
-  ) {
+  // "/" is the financial KPI dashboard, /print renders the same admin-only
+  // reports (receipts/ledgers/monthly summaries) as plain HTML for
+  // printing, and /fees prices tuition -- all admin-only, same as /reports.
+  const adminOnly = path === "/" || ["/reports", "/print", "/fees"].some((p) => path.startsWith(p));
+  if (adminOnly && role !== "admin") {
     return NextResponse.redirect(new URL("/students", request.url));
   }
 

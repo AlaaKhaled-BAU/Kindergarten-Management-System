@@ -44,6 +44,83 @@ interface UpdateStudentInput {
   siblingGlobalId?: string | null;
 }
 
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+interface EnrolmentChargeInput {
+  tuitionAmount: number;
+  busFees: number;
+  additionalFees: number;
+  discountValue: number;
+  discountIsPercent: boolean;
+}
+
+/**
+ * Posts the tuition + extra-fees + discount ledger entries for a student's
+ * enrolment. Shared by createStudent and promoteStudents so they can never
+ * drift apart again -- promoteStudents used to duplicate only the tuition
+ * charge and silently skip extras/discount, under-billing every promoted
+ * student by whatever their bus fee and discount were.
+ */
+export async function postEnrolmentCharges(
+  tx: Tx,
+  studentId: number,
+  input: EnrolmentChargeInput,
+  actor: string,
+  isPromotion = false
+): Promise<void> {
+  const { tuitionAmount, busFees, additionalFees, discountValue, discountIsPercent } = input;
+  const suffix = isPromotion ? " - ترقية" : "";
+  const refSuffix = isPromotion ? ":Promotion" : "";
+
+  if (tuitionAmount > 0) {
+    await tx.transaction.create({
+      data: {
+        studentId,
+        transactionType: "Charge",
+        amount: roundMoney(tuitionAmount),
+        transactionDate: new Date(),
+        description: `رسوم دراسية${suffix}`,
+        referenceId: `Fee:Tuition${refSuffix}`,
+        createdBy: actor,
+      },
+    });
+  }
+
+  const extraFees = roundMoney(busFees + additionalFees);
+  if (extraFees > 0) {
+    await tx.transaction.create({
+      data: {
+        studentId,
+        transactionType: "Charge",
+        amount: extraFees,
+        transactionDate: new Date(),
+        description: "رسوم إضافية (باص + إضافات)",
+        referenceId: `Fee:Extra${refSuffix}`,
+        createdBy: actor,
+      },
+    });
+  }
+
+  if (discountValue > 0) {
+    const effectiveDiscount = roundMoney(
+      discountIsPercent ? (tuitionAmount + extraFees) * (discountValue / 100) : discountValue
+    );
+    if (effectiveDiscount > 0) {
+      await tx.transaction.create({
+        data: {
+          studentId,
+          transactionType: "Charge",
+          amount: -effectiveDiscount,
+          transactionDate: new Date(),
+          description: discountIsPercent ? `خصم ${discountValue}%` : "خصم",
+          referenceId: `Fee:Discount${refSuffix}`,
+          createdBy: actor,
+        },
+      });
+    }
+  }
+}
+
 export async function createStudent(input: CreateStudentInput) {
   const actor = await requireAuth();
 
@@ -116,53 +193,12 @@ export async function createStudent(input: CreateStudentInput) {
     }
 
     const tuitionAmount = tuitionOverride ?? await getDefaultTuition(tx, input.grade, input.academicYear);
-    if (tuitionAmount > 0) {
-      await tx.transaction.create({
-        data: {
-          studentId: student.id,
-          transactionType: "Charge",
-          amount: tuitionAmount,
-          transactionDate: new Date(),
-          description: "رسوم دراسية",
-          referenceId: "Fee:Tuition",
-          createdBy: actor,
-        },
-      });
-    }
-
-    const extraFees = busFees + additionalFees;
-    if (extraFees > 0) {
-      await tx.transaction.create({
-        data: {
-          studentId: student.id,
-          transactionType: "Charge",
-          amount: extraFees,
-          transactionDate: new Date(),
-          description: "رسوم إضافية (باص + إضافات)",
-          referenceId: "Fee:Extra",
-          createdBy: actor,
-        },
-      });
-    }
-
-    if (discountValue > 0) {
-      const effectiveDiscount = discountIsPercent
-        ? (tuitionAmount + extraFees) * (discountValue / 100)
-        : discountValue;
-      if (effectiveDiscount > 0) {
-        await tx.transaction.create({
-          data: {
-            studentId: student.id,
-            transactionType: "Charge",
-            amount: -effectiveDiscount,
-            transactionDate: new Date(),
-            description: discountIsPercent ? `خصم ${discountValue}%` : "خصم",
-            referenceId: "Fee:Discount",
-            createdBy: actor,
-          },
-        });
-      }
-    }
+    await postEnrolmentCharges(
+      tx,
+      student.id,
+      { tuitionAmount, busFees, additionalFees, discountValue, discountIsPercent },
+      actor
+    );
 
     await logEvent("student_created", { studentId: student.id });
     return student;
@@ -200,9 +236,12 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
     const oldTotal = oldTuition + current.busFees + current.additionalFees - oldEffectiveDiscount;
     const newTotal = newTuition + newBusFees + newAdditionalFees - newEffectiveDiscount;
 
-    const netChange = newTotal - oldTotal;
+    const netChange = roundMoney(newTotal - oldTotal);
 
-    if (netChange !== 0) {
+    // Float subtraction can leave e.g. 0.00000000001 instead of exactly 0 --
+    // roundMoney() alone doesn't guarantee that lands on 0, so compare
+    // against half a fils instead of exact equality.
+    if (Math.abs(netChange) >= 0.0005) {
       const changes: string[] = [];
       if (current.busFees !== newBusFees) changes.push("رسوم الباص");
       if (current.additionalFees !== newAdditionalFees) changes.push("رسوم إضافية");
@@ -406,7 +445,7 @@ function getEffectiveDiscount(
  * if no row matches the exact year yet, rather than silently charging 0.
  */
 export async function getDefaultTuition(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  tx: Tx,
   grade: string,
   academicYear: string
 ): Promise<number> {
@@ -430,4 +469,26 @@ export async function getDefaultTuition(
     orderBy: { amount: "asc" },
   });
   return fallback?.amount ?? 0;
+}
+
+/**
+ * True only if this exact grade+year has its own Monthly fee row --
+ * unlike getDefaultTuition, does NOT fall back to another year's rate.
+ * Used to refuse a grade promotion into a year nobody has priced yet,
+ * rather than silently billing every promoted student last year's tuition.
+ */
+export async function hasFeeForYear(
+  tx: Tx,
+  grade: string,
+  academicYear: string
+): Promise<boolean> {
+  const exact = await tx.fee.findFirst({
+    where: {
+      applicableGrade: grade,
+      academicYear,
+      isActive: true,
+      feeType: "Monthly",
+    },
+  });
+  return !!exact;
 }

@@ -250,6 +250,9 @@ export function RevenuesPageClient({
                     {r.amount.toFixed(2)} د.أ
                   </td>
                   <td className="py-3 px-4 text-end">
+                    {r.source === "Payment" || r.source === "Cancellation" ? (
+                      <span className="text-xs text-muted-foreground">تلقائي</span>
+                    ) : (
                     <div className="flex gap-1 justify-end">
                       <Button
                         variant="ghost"
@@ -276,6 +279,7 @@ export function RevenuesPageClient({
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
+                    )}
                   </td>
                 </tr>
               ))
