@@ -38,7 +38,7 @@ export async function proxy(request: NextRequest) {
   // printing, /fees prices tuition, and /revenues+/expenses are school
   // bookkeeping -- all admin-only, same as /reports. Students/Payments
   // stay reachable by both roles.
-  const ADMIN_ONLY_PREFIXES = ["/reports", "/print", "/fees", "/revenues", "/expenses"];
+  const ADMIN_ONLY_PREFIXES = ["/reports", "/print", "/fees", "/revenues", "/expenses", "/settings"];
   const adminOnly = path === "/" || ADMIN_ONLY_PREFIXES.some((p) => path.startsWith(p));
   if (adminOnly && role !== "admin") {
     return NextResponse.redirect(new URL("/students", request.url));

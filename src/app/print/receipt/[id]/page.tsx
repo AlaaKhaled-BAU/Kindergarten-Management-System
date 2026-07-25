@@ -1,5 +1,6 @@
 import { generateReceiptPdf } from "@/app/actions/pdf-actions";
 import { numberToArabicWords, splitDinarFils } from "@/lib/tafqit";
+import { getSetting } from "@/lib/settings";
 import { notFound } from "next/navigation";
 import { AutoPrint, PrintButton } from "../../print-controls";
 
@@ -16,11 +17,17 @@ export default async function ReceiptPrintPage({
 
   // generateReceiptPdf uses findUniqueOrThrow -- a nonexistent id throws
   // rather than returning null, so a plain `if (!data)` guard can't catch it.
-  const data = await generateReceiptPdf(receiptId).catch(() => null);
+  const [data, address, phone, email] = await Promise.all([
+    generateReceiptPdf(receiptId).catch(() => null),
+    getSetting("kindergartenAddress"),
+    getSetting("kindergartenPhone"),
+    getSetting("kindergartenEmail"),
+  ]);
   if (!data) notFound();
 
   const { dinars, fils } = splitDinarFils(data.amount);
   const amountWords = numberToArabicWords(data.amount);
+  const contactLine = [address, phone].filter(Boolean).join(" - ");
 
   return (
     <div className="font-print bg-white text-black p-8 print:p-0 max-w-2xl mx-auto">
@@ -29,7 +36,11 @@ export default async function ReceiptPrintPage({
       <PrintButton />
 
       <div className="flex flex-row-reverse justify-between items-start mb-4">
-        <h1 className="text-xl font-bold">{data.kindergartenName}</h1>
+        <div>
+          <h1 className="text-xl font-bold">{data.kindergartenName}</h1>
+          {contactLine && <p className="text-xs text-gray-600 mt-1">{contactLine}</p>}
+          {email && <p className="text-xs text-gray-600">{email}</p>}
+        </div>
       </div>
 
       <div className="flex flex-row-reverse justify-center items-center gap-4 my-3">

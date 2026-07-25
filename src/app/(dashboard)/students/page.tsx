@@ -1,6 +1,7 @@
 import { getAllStudents, getStudentBalances } from "@/app/actions/student-actions";
 import { StudentsTable } from "@/components/students/students-table";
 import { PromotionDialog } from "@/components/students/promotion-dialog";
+import { ExportBalancesButton } from "@/components/students/export-balances-button";
 import { getAuthRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,12 @@ export default async function StudentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">الطلاب</h1>
-        {role === "admin" && <PromotionDialog />}
+        {role === "admin" && (
+          <div className="flex items-center gap-2">
+            <ExportBalancesButton />
+            <PromotionDialog />
+          </div>
+        )}
       </div>
       <StudentsTable students={studentsWithBalance} />
     </div>

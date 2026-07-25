@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentStatusButton } from "@/components/students/student-status-button";
+import { StudentEditButton } from "@/components/students/student-edit-button";
 import { RefundButton } from "@/components/students/refund-button";
 import { getAuthRole } from "@/lib/auth";
 import { gradeLabel } from "@/lib/grades";
@@ -40,7 +41,26 @@ export default async function StudentProfilePage({
             {gradeLabel(student.grade)} — {student.academicYear}
           </p>
         </div>
-        <StudentStatusButton studentId={student.id} isActive={student.isActive} />
+        <div className="flex items-center gap-2">
+          <StudentEditButton
+            student={{
+              id: student.id,
+              firstName: student.firstName,
+              lastName: student.lastName,
+              grade: student.grade,
+              academicYear: student.academicYear,
+              dateOfBirth: student.dateOfBirth ? format(new Date(student.dateOfBirth), "yyyy-MM-dd") : null,
+              busFees: student.busFees,
+              additionalFees: student.additionalFees,
+              discountValue: student.discountValue,
+              discountIsPercent: student.discountIsPercent,
+              allergies: student.allergies,
+              medicalNotes: student.medicalNotes,
+              notes: student.notes,
+            }}
+          />
+          <StudentStatusButton studentId={student.id} isActive={student.isActive} />
+        </div>
       </div>
 
       <Tabs defaultValue="info">

@@ -72,6 +72,10 @@ export function StudentsTable({
       );
       const discountIsPercent = formData.get("discountIsPercent") === "on";
 
+      const parentName = formData.get("parentName") as string;
+      const parentPhone = formData.get("parentPhone") as string;
+      const pickupName = formData.get("pickupName") as string;
+
       const student = await createStudent({
         firstName: formData.get("firstName") as string,
         lastName: formData.get("lastName") as string,
@@ -87,6 +91,16 @@ export function StudentsTable({
         discountIsPercent,
         allergies: (formData.get("allergies") as string) || undefined,
         medicalNotes: (formData.get("medicalNotes") as string) || undefined,
+        parents: parentName && parentPhone ? [{
+          fullName: parentName,
+          phone: parentPhone,
+          relationship: (formData.get("parentRelationship") as string) || undefined,
+        }] : undefined,
+        pickupPersons: pickupName ? [{
+          fullName: pickupName,
+          relationship: (formData.get("pickupRelationship") as string) || undefined,
+          phone: (formData.get("pickupPhone") as string) || undefined,
+        }] : undefined,
       });
 
       setStudents((prev) => [{ ...student, balance: 0 }, ...prev]);
@@ -241,6 +255,43 @@ export function StudentsTable({
                 <Label htmlFor="notes">ملاحظات</Label>
                 <Input id="notes" name="notes" />
               </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <p className="text-sm font-medium">ولي الأمر</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="parentName">الاسم</Label>
+                    <Input id="parentName" name="parentName" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="parentPhone">رقم الهاتف</Label>
+                    <Input id="parentPhone" name="parentPhone" type="tel" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="parentRelationship">الصلة</Label>
+                  <Input id="parentRelationship" name="parentRelationship" placeholder="الأب / الأم / ولي الأمر" />
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <p className="text-sm font-medium">مخول بالاستلام (اختياري)</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="pickupName">الاسم</Label>
+                    <Input id="pickupName" name="pickupName" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pickupPhone">رقم الهاتف</Label>
+                    <Input id="pickupPhone" name="pickupPhone" type="tel" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pickupRelationship">الصلة</Label>
+                  <Input id="pickupRelationship" name="pickupRelationship" />
+                </div>
+              </div>
+
               {error && (
                 <p className="text-sm text-destructive" role="alert">
                   {error}

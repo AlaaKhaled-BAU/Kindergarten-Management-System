@@ -12,6 +12,7 @@ import {
   Receipt,
   Wallet,
   FileText,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -33,6 +34,7 @@ const navigation = [
   { name: "المصروفات", href: "/expenses", icon: Receipt, role: "admin" },
   { name: "الرسوم الدراسية", href: "/fees", icon: Wallet, role: "admin" },
   { name: "التقارير", href: "/reports", icon: FileText, role: "admin" },
+  { name: "الإعدادات", href: "/settings", icon: Settings, role: "admin" },
 ];
 
 interface SidebarProps {

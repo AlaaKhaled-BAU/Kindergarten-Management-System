@@ -2,6 +2,7 @@
 
 import fs from "fs/promises";
 import path from "path";
+import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { requireAdmin } from "./validation";
 
@@ -50,7 +51,10 @@ export async function createBackup(): Promise<{
     const backupFileName = `backup_${formatTimestamp()}.db`;
     const backupPath = path.join(backupsDir, backupFileName);
 
-    await fs.copyFile(dbPath, backupPath);
+    // VACUUM INTO takes a consistent, defragmented snapshot atomically at
+    // the SQLite level -- unlike fs.copyFile, which can race a concurrent
+    // write and copy a torn/partial file.
+    await prisma.$executeRawUnsafe(`VACUUM INTO ?`, backupPath);
 
     // Cleanup: keep only last MAX_BACKUPS
     const files = await fs.readdir(backupsDir);
