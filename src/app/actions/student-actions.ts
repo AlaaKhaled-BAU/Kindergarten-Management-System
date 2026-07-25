@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { requireAuth, validateRequiredString } from "./validation";
+import { requireAuth, requireAdmin, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
 
 interface CreateStudentInput {
@@ -416,7 +416,9 @@ export async function getAllStudents(filters?: {
 }
 
 export async function setStudentActive(id: number, isActive: boolean) {
-  const actor = await requireAuth();
+  // Deactivating/reactivating changes who shows up as an active enrollment
+  // across every report -- admin-only.
+  const actor = await requireAdmin();
 
   const updated = await prisma.student.update({
     where: { id },

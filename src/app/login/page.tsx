@@ -11,7 +11,8 @@ import { LogIn, User } from "lucide-react";
 const initialState: { error?: string } = {};
 
 export default function LoginPage() {
-  const [state, formAction, isPending] = useActionState(adminLogin, initialState);
+  const [adminState, adminFormAction, adminPending] = useActionState(adminLogin, initialState);
+  const [teacherState, teacherFormAction, teacherPending] = useActionState(teacherLogin, initialState);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -23,7 +24,7 @@ export default function LoginPage() {
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
-          <form action={formAction} className="space-y-4">
+          <form action={adminFormAction} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">كلمة المرور (للمسؤول)</Label>
               <Input
@@ -31,19 +32,19 @@ export default function LoginPage() {
                 name="password"
                 type="password"
                 placeholder="أدخل كلمة مرور المسؤول"
-                disabled={isPending}
+                disabled={adminPending}
               />
             </div>
 
-            {state?.error && (
+            {adminState?.error && (
               <p className="text-sm text-destructive font-medium">
-                {state.error}
+                {adminState.error}
               </p>
             )}
 
-            <Button type="submit" className="w-full" disabled={isPending}>
+            <Button type="submit" className="w-full" disabled={adminPending}>
               <LogIn className="me-2 size-4" />
-              {isPending ? "جاري الدخول..." : "دخول كمسؤول"}
+              {adminPending ? "جاري الدخول..." : "دخول كمسؤول"}
             </Button>
           </form>
 
@@ -56,14 +57,27 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form action={teacherLogin}>
-            <Button
-              type="submit"
-              variant="outline"
-              className="w-full"
-            >
+          <form action={teacherFormAction} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="teacherPassword">كلمة المرور (للمعلم)</Label>
+              <Input
+                id="teacherPassword"
+                name="password"
+                type="password"
+                placeholder="أدخل كلمة مرور المعلم"
+                disabled={teacherPending}
+              />
+            </div>
+
+            {teacherState?.error && (
+              <p className="text-sm text-destructive font-medium">
+                {teacherState.error}
+              </p>
+            )}
+
+            <Button type="submit" variant="outline" className="w-full" disabled={teacherPending}>
               <User className="me-2 size-4" />
-              دخول كمعلم
+              {teacherPending ? "جاري الدخول..." : "دخول كمعلم"}
             </Button>
           </form>
         </CardContent>

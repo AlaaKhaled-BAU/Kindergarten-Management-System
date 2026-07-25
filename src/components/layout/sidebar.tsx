@@ -19,14 +19,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { BackupButton } from "@/components/layout/backup-button";
+import { TeacherPasswordButton } from "@/components/layout/teacher-password-button";
 import { useState } from "react";
 
+// Revenues/Expenses are school bookkeeping, not day-to-day classroom
+// operations -- admin-only, same as Fees and Reports. Students/Payments
+// stay "all" since a teacher issuing a receipt is normal daily work.
 const navigation = [
   { name: "لوحة القيادة", href: "/", icon: LayoutDashboard, role: "admin" },
   { name: "الطلاب", href: "/students", icon: Users, role: "all" },
   { name: "المدفوعات والإيصالات", href: "/payments", icon: Banknote, role: "all" },
-  { name: "الإيرادات", href: "/revenues", icon: TrendingUp, role: "all" },
-  { name: "المصروفات", href: "/expenses", icon: Receipt, role: "all" },
+  { name: "الإيرادات", href: "/revenues", icon: TrendingUp, role: "admin" },
+  { name: "المصروفات", href: "/expenses", icon: Receipt, role: "admin" },
   { name: "الرسوم الدراسية", href: "/fees", icon: Wallet, role: "admin" },
   { name: "التقارير", href: "/reports", icon: FileText, role: "admin" },
 ];
@@ -113,7 +117,12 @@ export function Sidebar({ role }: SidebarProps) {
               />
             </div>
             <div className="border-t p-2">
-              <BackupButton />
+              {role === "admin" && (
+                <>
+                  <BackupButton />
+                  <TeacherPasswordButton />
+                </>
+              )}
               <form action={logout}>
                 <Button
                   type="submit"
@@ -144,7 +153,12 @@ export function Sidebar({ role }: SidebarProps) {
           />
         </div>
         <div className="border-t p-2">
-          <BackupButton />
+          {role === "admin" && (
+            <>
+              <BackupButton />
+              <TeacherPasswordButton />
+            </>
+          )}
           <form action={logout}>
             <Button
               type="submit"

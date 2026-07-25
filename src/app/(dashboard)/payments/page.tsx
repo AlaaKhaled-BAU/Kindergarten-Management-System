@@ -1,13 +1,15 @@
 import { getReceipts } from "@/app/actions/payment-actions";
 import { getAllStudents } from "@/app/actions/student-actions";
 import { PaymentsPageClient } from "@/components/payments/payments-client";
+import { getAuthRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function PaymentsPage() {
-  const [receipts, students] = await Promise.all([
+  const [receipts, students, role] = await Promise.all([
     getReceipts(),
     getAllStudents({ isActive: true }),
+    getAuthRole(),
   ]);
 
   return (
@@ -23,6 +25,7 @@ export default async function PaymentsPage() {
         firstName: s.firstName,
         lastName: s.lastName,
       }))}
+      canCancel={role === "admin"}
     />
   );
 }

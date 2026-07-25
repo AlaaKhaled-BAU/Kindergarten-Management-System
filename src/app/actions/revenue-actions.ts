@@ -31,7 +31,7 @@ interface CreateRevenueInput {
 }
 
 export async function createRevenue(input: CreateRevenueInput) {
-  await requireAuth();
+  await requireAdmin();
 
   validatePositiveNumber(input.amount, "المبلغ");
   validateRequiredString(input.category, "الفئة");
@@ -55,7 +55,7 @@ export async function updateRevenue(
   id: number,
   input: Partial<CreateRevenueInput>
 ) {
-  await requireAuth();
+  await requireAdmin();
 
   const existing = await prisma.revenue.findUniqueOrThrow({ where: { id } });
   assertNotDerived(existing.source, "تعديل");
@@ -76,7 +76,7 @@ export async function updateRevenue(
 }
 
 export async function deleteRevenue(id: number) {
-  const actor = await requireAuth();
+  const actor = await requireAdmin();
 
   const existing = await prisma.revenue.findUniqueOrThrow({ where: { id } });
   assertNotDerived(existing.source, "حذف");

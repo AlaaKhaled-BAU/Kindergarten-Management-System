@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "./validation";
+import { requireAuth, requireAdmin } from "./validation";
 import { MONTH_INDEX } from "@/lib/excel-utils";
 import { logEvent } from "@/lib/logger";
 import ExcelJS from "exceljs";
@@ -51,7 +51,7 @@ function parseYear(raw: unknown): number {
 }
 
 export async function importRevenues(formData: FormData) {
-  await requireAuth();
+  await requireAdmin();
 
   const file = formData.get("file");
   if (!file || !(file instanceof File)) {
@@ -128,7 +128,7 @@ export async function importRevenues(formData: FormData) {
 }
 
 export async function importExpenses(formData: FormData) {
-  await requireAuth();
+  await requireAdmin();
 
   const file = formData.get("file");
   if (!file || !(file instanceof File)) {

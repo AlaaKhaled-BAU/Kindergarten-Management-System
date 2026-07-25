@@ -51,9 +51,11 @@ interface Student {
 export function PaymentsPageClient({
   receipts: initialReceipts,
   students,
+  canCancel,
 }: {
   receipts: Receipt[];
   students: Student[];
+  canCancel: boolean;
 }) {
   const router = useRouter();
   const [receipts, setReceipts] = useState(initialReceipts);
@@ -282,7 +284,7 @@ export function PaymentsPageClient({
                     </span>
                   </td>
                   <td className="py-3 px-4 text-end">
-                    {!r.isCanceled && (
+                    {!r.isCanceled && canCancel && (
                       <Button
                         variant="ghost"
                         size="sm"

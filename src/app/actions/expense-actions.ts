@@ -1,7 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth, validatePositiveNumber, validateRequiredString } from "./validation";
+import { logEvent } from "@/lib/logger";
+import { requireAuth, requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
 
 interface CreateExpenseInput {
   year: number;
@@ -15,7 +16,7 @@ interface CreateExpenseInput {
 }
 
 export async function createExpense(input: CreateExpenseInput) {
-  await requireAuth();
+  await requireAdmin();
 
   validatePositiveNumber(input.amount, "المبلغ");
   validateRequiredString(input.category, "الفئة");
@@ -41,7 +42,7 @@ export async function updateExpense(
   id: number,
   input: Partial<CreateExpenseInput>
 ) {
-  await requireAuth();
+  await requireAdmin();
 
   const expense = await prisma.expense.update({
     where: { id },
@@ -61,9 +62,10 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(id: number) {
-  await requireAuth();
+  const actor = await requireAdmin();
 
   await prisma.expense.delete({ where: { id } });
+  await logEvent("expense_deleted", { expenseId: id, actor });
 }
 
 export async function getExpenses(filters?: {

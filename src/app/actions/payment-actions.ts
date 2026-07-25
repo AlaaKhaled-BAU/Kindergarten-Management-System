@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { getSetting } from "@/lib/settings";
-import { requireAuth, validatePositiveNumber } from "./validation";
+import { requireAuth, requireAdmin, validatePositiveNumber } from "./validation";
 
 interface ProcessPaymentInput {
   studentId: number;
@@ -124,7 +124,8 @@ async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) 
 }
 
 export async function cancelReceipt(input: CancelReceiptInput) {
-  const actor = await requireAuth();
+  // A financial reversal, unlike issuing a receipt -- admin-only.
+  const actor = await requireAdmin();
 
   return prisma.$transaction(async (tx) => {
     const receipt = await tx.receipt.findUniqueOrThrow({

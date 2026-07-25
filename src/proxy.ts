@@ -35,8 +35,11 @@ export async function proxy(request: NextRequest) {
 
   // "/" is the financial KPI dashboard, /print renders the same admin-only
   // reports (receipts/ledgers/monthly summaries) as plain HTML for
-  // printing, and /fees prices tuition -- all admin-only, same as /reports.
-  const adminOnly = path === "/" || ["/reports", "/print", "/fees"].some((p) => path.startsWith(p));
+  // printing, /fees prices tuition, and /revenues+/expenses are school
+  // bookkeeping -- all admin-only, same as /reports. Students/Payments
+  // stay reachable by both roles.
+  const ADMIN_ONLY_PREFIXES = ["/reports", "/print", "/fees", "/revenues", "/expenses"];
+  const adminOnly = path === "/" || ADMIN_ONLY_PREFIXES.some((p) => path.startsWith(p));
   if (adminOnly && role !== "admin") {
     return NextResponse.redirect(new URL("/students", request.url));
   }

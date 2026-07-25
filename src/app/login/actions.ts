@@ -34,7 +34,25 @@ export async function adminLogin(
   redirect("/");
 }
 
-export async function teacherLogin(): Promise<never> {
+export async function teacherLogin(
+  _prevState: LoginState,
+  formData: FormData
+): Promise<LoginState> {
+  const password = formData.get("password") as string;
+
+  if (!password || password.trim() === "") {
+    return { error: "الرجاء إدخال كلمة المرور" };
+  }
+
+  const storedHash = await getSetting("teacherPasswordHash");
+  if (!storedHash) {
+    return { error: "لم يتم تفعيل حساب المعلم بعد. الرجاء التواصل مع المسؤول" };
+  }
+
+  if (!verifyPassword(password, storedHash)) {
+    return { error: "كلمة المرور غير صحيحة" };
+  }
+
   await setAuthCookie("teacher");
   await logEvent("login", { role: "teacher" });
   redirect("/students");
