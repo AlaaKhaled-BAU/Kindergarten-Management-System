@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { createStudent } from "@/app/actions/student-actions";
+import { AcademicYearSelect } from "@/components/shared/academic-year-select";
 import { Plus, Search } from "lucide-react";
 import { GRADES, gradeLabel } from "@/lib/grades";
 
@@ -44,6 +45,7 @@ export function StudentsTable({
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
   const [students, setStudents] = useState(initialStudents);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -51,6 +53,7 @@ export function StudentsTable({
 
   const filtered = students.filter((s) => {
     if (gradeFilter !== "all" && s.grade !== gradeFilter) return false;
+    if (yearFilter !== "all" && s.academicYear !== yearFilter) return false;
     if (search) {
       const q = search.toLowerCase();
       const name = `${s.firstName} ${s.lastName}`.toLowerCase();
@@ -139,6 +142,13 @@ export function StudentsTable({
               ))}
             </SelectContent>
           </Select>
+          <AcademicYearSelect
+            value={yearFilter}
+            onValueChange={(v) => setYearFilter(v ?? "all")}
+            showAll
+            className="w-36"
+            placeholder="السنة"
+          />
         </div>
 
         <Dialog
@@ -192,12 +202,7 @@ export function StudentsTable({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="academicYear">السنة الدراسية *</Label>
-                  <Input
-                    id="academicYear"
-                    name="academicYear"
-                    defaultValue="2025-2026"
-                    required
-                  />
+                  <AcademicYearSelect name="academicYear" includeNext required className="w-full" />
                 </div>
               </div>
               <div className="space-y-2">

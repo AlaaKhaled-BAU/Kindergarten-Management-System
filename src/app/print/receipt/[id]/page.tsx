@@ -1,4 +1,4 @@
-import { generateReceiptPdf } from "@/app/actions/pdf-actions";
+import { generateReceiptPdf, type ReceiptPdfData } from "@/app/actions/pdf-actions";
 import { numberToArabicWords, splitDinarFils } from "@/lib/tafqit";
 import { getSetting } from "@/lib/settings";
 import { notFound } from "next/navigation";
@@ -25,22 +25,58 @@ export default async function ReceiptPrintPage({
   ]);
   if (!data) notFound();
 
-  const { dinars, fils } = splitDinarFils(data.amount);
-  const amountWords = numberToArabicWords(data.amount);
   const contactLine = [address, phone].filter(Boolean).join(" - ");
 
   return (
-    <div className="font-print bg-white text-black p-8 print:p-0 max-w-2xl mx-auto">
-      <style>{"@page { size: A5 landscape; margin: 12mm; }"}</style>
+    // Two identical copies stacked on one A4 portrait page (exactly two
+    // A5-landscape halves) -- one for the kindergarten's own records, one
+    // for the parent, meant to be cut along the dashed line. Printing one
+    // A5 receipt at a time wasted a full sheet of paper per payment.
+    <div className="font-print bg-white text-black print:p-0">
+      <style>{"@page { size: A4 portrait; margin: 10mm; }"}</style>
       <AutoPrint />
       <PrintButton />
 
-      <div className="flex flex-row-reverse justify-between items-start mb-4">
+      <div className="h-[134mm]">
+        <ReceiptCopy data={data} contactLine={contactLine} email={email} copyLabel="نسخة الروضة" />
+      </div>
+
+      <div className="flex items-center gap-2 text-gray-400 my-1" aria-hidden="true">
+        <div className="flex-1 border-t border-dashed border-gray-400" />
+        <span className="text-xs">✂ يُقص من هنا</span>
+        <div className="flex-1 border-t border-dashed border-gray-400" />
+      </div>
+
+      <div className="h-[134mm]">
+        <ReceiptCopy data={data} contactLine={contactLine} email={email} copyLabel="نسخة ولي الأمر" />
+      </div>
+    </div>
+  );
+}
+
+function ReceiptCopy({
+  data,
+  contactLine,
+  email,
+  copyLabel,
+}: {
+  data: ReceiptPdfData;
+  contactLine: string;
+  email: string | undefined;
+  copyLabel: string;
+}) {
+  const { dinars, fils } = splitDinarFils(data.amount);
+  const amountWords = numberToArabicWords(data.amount);
+
+  return (
+    <div className="h-full text-right p-4 flex flex-col">
+      <div className="flex flex-row-reverse justify-between items-start mb-3">
         <div>
           <h1 className="text-xl font-bold">{data.kindergartenName}</h1>
           {contactLine && <p className="text-xs text-gray-600 mt-1">{contactLine}</p>}
           {email && <p className="text-xs text-gray-600">{email}</p>}
         </div>
+        <span className="text-xs text-gray-500 border border-gray-400 rounded px-2 py-0.5">{copyLabel}</span>
       </div>
 
       <div className="flex flex-row-reverse justify-center items-center gap-4 my-3">
@@ -58,31 +94,30 @@ export default async function ReceiptPrintPage({
         <div className="text-sm font-bold">رقم {String(data.receiptNumber).padStart(5, "0")}</div>
       </div>
 
-      <DottedRow label="التاريخ" value={data.issueDate} />
-      <DottedRow label="وصلنا من السادة" value={data.studentName} />
-      <DottedRow label="مبلغ وقدره" value={amountWords} />
-      <DottedRow label="وذلك عن" value={data.paymentReason ?? "رسوم دراسية"} />
+      <InfoRow label="التاريخ" value={data.issueDate} />
+      <InfoRow label="وصلنا من ولي أمر الطالب" value={data.studentName} />
+      <InfoRow label="مبلغ وقدره" value={amountWords} />
+      <InfoRow label="وذلك عن" value={data.paymentReason ?? "رسوم دراسية"} />
 
       <div className="flex flex-row-reverse items-center gap-2 mt-2">
         <span className="size-3 rounded-full border border-black" />
         <span className="text-sm">{data.paymentMethod}</span>
       </div>
 
-      <div className="flex flex-row-reverse mt-10">
+      <div className="flex flex-row-reverse mt-auto pt-4">
         <div className="w-1/2 text-center">
-          <div className="border-b border-dotted border-black pb-1">....................</div>
-          <div className="text-xs mt-1">توقيع المستلم</div>
+          <div className="border-t border-black pt-1 text-xs">توقيع المستلم</div>
         </div>
       </div>
     </div>
   );
 }
 
-function DottedRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-row-reverse border-b border-dotted border-gray-400 py-1.5 mb-0.5">
-      <span className="font-bold text-sm min-w-28 ms-2">{label} :</span>
-      <span className="text-sm flex-1 text-right">...... {value} ......</span>
+    <div className="flex flex-row-reverse border-b border-gray-300 py-1.5">
+      <span className="font-bold text-sm min-w-36 ms-2">{label} :</span>
+      <span className="text-sm flex-1 text-right">{value}</span>
     </div>
   );
 }

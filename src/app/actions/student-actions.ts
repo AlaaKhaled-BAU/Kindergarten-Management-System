@@ -293,16 +293,21 @@ export type UnpaidStudent = {
   name: string;
   grade: string;
   balance: number;
-  hasPaidThisMonth: boolean;
   lastPaymentDate: Date | null;
 };
 
+const UNPAID_WINDOW_DAYS = 30;
+
 /**
- * 4 queries total regardless of student count, vs the previous 3*N+1 --
- * one balance-per-student groupBy, one distinct-studentId lookup for who
- * paid this month, and one max-paymentDate-per-student groupBy, instead of
- * three round-trips inside a per-student loop. Same output shape and same
- * balance>0 filter as before.
+ * Students who owe money AND haven't paid anything -- not even a partial
+ * payment -- in the last 30 days. A rolling window rather than "this
+ * calendar month" so it doesn't reset to showing nobody on the 1st even
+ * though the last payment might have been 3 weeks ago, and doesn't miss
+ * someone who paid on the 1st of last month and hasn't since.
+ *
+ * 3 queries total regardless of student count -- one balance-per-student
+ * groupBy and one max-paymentDate-per-student groupBy, instead of three
+ * round-trips inside a per-student loop.
  */
 export async function getUnpaidStudents(): Promise<UnpaidStudent[]> {
   await requireAuth();
@@ -311,20 +316,14 @@ export async function getUnpaidStudents(): Promise<UnpaidStudent[]> {
   if (students.length === 0) return [];
 
   const ids = students.map((s) => s.id);
-  const now = new Date();
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const windowStart = new Date();
+  windowStart.setDate(windowStart.getDate() - UNPAID_WINDOW_DAYS);
 
-  const [balanceRows, paidThisMonth, lastPayRows] = await Promise.all([
+  const [balanceRows, lastPayRows] = await Promise.all([
     prisma.transaction.groupBy({
       by: ["studentId"],
       where: { studentId: { in: ids } },
       _sum: { amount: true },
-    }),
-    prisma.payment.findMany({
-      where: { studentId: { in: ids }, paymentDate: { gte: firstDayOfMonth, lte: lastDayOfMonth } },
-      select: { studentId: true },
-      distinct: ["studentId"],
     }),
     prisma.payment.groupBy({
       by: ["studentId"],
@@ -334,20 +333,20 @@ export async function getUnpaidStudents(): Promise<UnpaidStudent[]> {
   ]);
 
   const balanceById = new Map(balanceRows.map((r) => [r.studentId, roundMoney(r._sum.amount ?? 0)]));
-  const paidSet = new Set(paidThisMonth.map((p) => p.studentId));
   const lastPayById = new Map(lastPayRows.map((r) => [r.studentId, r._max.paymentDate ?? null]));
 
   const result: UnpaidStudent[] = [];
   for (const student of students) {
     const balance = balanceById.get(student.id) ?? 0;
     if (balance <= 0) continue;
+    const lastPaymentDate = lastPayById.get(student.id) ?? null;
+    if (lastPaymentDate && lastPaymentDate >= windowStart) continue;
     result.push({
       id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       grade: student.grade,
       balance,
-      hasPaidThisMonth: paidSet.has(student.id),
-      lastPaymentDate: lastPayById.get(student.id) ?? null,
+      lastPaymentDate,
     });
   }
 

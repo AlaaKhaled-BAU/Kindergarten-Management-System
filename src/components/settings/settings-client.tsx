@@ -4,12 +4,15 @@ import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateKindergartenInfo, changeAdminPassword, type KindergartenInfo } from "@/app/actions/settings-actions";
+import { startNewAcademicYear } from "@/app/actions/academic-year-actions";
+import { nextAcademicYear } from "@/lib/academic-year";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ArrowRight } from "lucide-react";
 
-export function SettingsClient({ info }: { info: KindergartenInfo }) {
+export function SettingsClient({ info, currentAcademicYear }: { info: KindergartenInfo; currentAcademicYear: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +21,24 @@ export function SettingsClient({ info }: { info: KindergartenInfo }) {
   const [pwPending, setPwPending] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSaved, setPwSaved] = useState(false);
+
+  const [yearPending, setYearPending] = useState(false);
+  const [yearError, setYearError] = useState<string | null>(null);
+  const [activeYear, setActiveYear] = useState(currentAcademicYear);
+
+  async function handleStartNewYear() {
+    setYearError(null);
+    setYearPending(true);
+    try {
+      const next = await startNewAcademicYear();
+      setActiveYear(next);
+      router.refresh();
+    } catch (err) {
+      setYearError(errorMessage(err));
+    } finally {
+      setYearPending(false);
+    }
+  }
 
   async function handleInfoSubmit(formData: FormData) {
     setError(null);
@@ -61,6 +82,34 @@ export function SettingsClient({ info }: { info: KindergartenInfo }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>السنة الدراسية</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm text-muted-foreground">السنة الدراسية الحالية</p>
+            <p className="text-2xl font-bold">{activeYear}</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            هذا هو ما تفترضه القوائم الجديدة (الطلاب، الرسوم، الترقية) كسنة حالية. يمكن اختيار أي سنة أخرى يدوياً في كل قائمة عند الحاجة.
+          </p>
+          {yearError && <p className="text-sm text-destructive" role="alert">{yearError}</p>}
+          <Button
+            variant="outline"
+            disabled={yearPending}
+            onClick={() => {
+              if (window.confirm(`سيتم بدء سنة دراسية جديدة (${nextAcademicYear(activeYear)}). هل أنت متأكد؟`)) {
+                handleStartNewYear();
+              }
+            }}
+          >
+            <ArrowRight className="me-2 size-4" />
+            {yearPending ? "جارٍ التنفيذ..." : `بدء سنة دراسية جديدة (${nextAcademicYear(activeYear)})`}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>بيانات الروضة</CardTitle>

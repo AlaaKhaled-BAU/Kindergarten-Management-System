@@ -23,7 +23,7 @@ export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
         <AlertTriangle className="size-5 shrink-0 text-amber-600" />
         <span className="text-sm font-medium">
           يوجد {students.length} طالب{" "}
-          {students.length === 1 ? "لم يسدد" : "لم يسددوا"} هذا الشهر
+          {students.length === 1 ? "لم يسدد" : "لم يسددوا"} أي مبلغ خلال آخر 30 يوماً
         </span>
       </div>
 
@@ -68,15 +68,10 @@ export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
                         : "—"}
                     </td>
                     <td className="py-2">
-                      {s.hasPaidThisMonth ? (
-                        <Badge
-                          variant="secondary"
-                          className="bg-green-100 text-green-700"
-                        >
-                          مدفوع جزئياً
-                        </Badge>
-                      ) : (
+                      {s.lastPaymentDate ? (
                         <Badge variant="destructive">متأخر</Badge>
+                      ) : (
+                        <Badge variant="destructive">لم يدفع أبداً</Badge>
                       )}
                     </td>
                   </tr>

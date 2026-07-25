@@ -1,14 +1,15 @@
 "use client";
 
 import { errorMessage } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   getPromotionCandidates,
   promoteGrade,
 } from "@/app/actions/promotion-actions";
+import { getAcademicYears } from "@/app/actions/academic-year-actions";
+import { nextAcademicYear } from "@/lib/academic-year";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -17,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AcademicYearSelect } from "@/components/shared/academic-year-select";
 import {
   Dialog,
   DialogContent,
@@ -33,13 +35,22 @@ export function PromotionDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [sourceGrade, setSourceGrade] = useState("Pre");
-  const [sourceYear, setSourceYear] = useState("2025-2026");
+  const [sourceYear, setSourceYear] = useState("");
   const [targetGrade, setTargetGrade] = useState("KG1");
-  const [targetYear, setTargetYear] = useState("2026-2027");
+  const [targetYear, setTargetYear] = useState("");
   const [candidates, setCandidates] = useState<{ id: number; firstName: string; lastName: string }[] | null>(null);
   const [results, setResults] = useState<PromotionResult | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Seed source=current year, target=next year -- the common case (promoting
+  // this year's cohort into next year) -- instead of a stale hardcoded pair.
+  useEffect(() => {
+    getAcademicYears().then(({ current }) => {
+      setSourceYear((prev) => prev || current);
+      setTargetYear((prev) => prev || nextAcademicYear(current));
+    });
+  }, []);
 
   function reset() {
     setCandidates(null);
@@ -112,8 +123,8 @@ export function PromotionDialog() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="source-year">السنة الحالية</Label>
-                <Input id="source-year" value={sourceYear} onChange={(e) => setSourceYear(e.target.value)} />
+                <Label>السنة الحالية</Label>
+                <AcademicYearSelect value={sourceYear} onValueChange={(v) => v && setSourceYear(v)} className="w-full" />
               </div>
               <div className="space-y-2">
                 <Label>الصف الجديد</Label>
@@ -129,13 +140,13 @@ export function PromotionDialog() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="target-year">السنة الجديدة</Label>
-                <Input id="target-year" value={targetYear} onChange={(e) => setTargetYear(e.target.value)} />
+                <Label>السنة الجديدة</Label>
+                <AcademicYearSelect value={targetYear} onValueChange={(v) => v && setTargetYear(v)} includeNext className="w-full" />
               </div>
             </div>
 
             {!candidates && (
-              <Button onClick={handlePreview} disabled={pending} className="w-full">
+              <Button onClick={handlePreview} disabled={pending || !sourceYear || !targetYear} className="w-full">
                 {pending ? "جارٍ البحث..." : "معاينة الطلاب"}
               </Button>
             )}

@@ -42,6 +42,15 @@ function applyRtlSheet(sheet: ExcelJS.Worksheet) {
   sheet.views = [{ rightToLeft: true }];
 }
 
+/** Right-aligns every data cell -- rightToLeft only flips column order and
+ * reading direction, it doesn't change individual cells' text alignment,
+ * which otherwise defaults to left for numbers and General for text. */
+function rightAlignColumns(sheet: ExcelJS.Worksheet) {
+  sheet.columns.forEach((col) => {
+    col.alignment = { horizontal: "right" };
+  });
+}
+
 /**
  * Prefixes a leading apostrophe (Excel's "treat as text" escape) on any
  * value starting with =, +, -, or @ before writing it into a cell.
@@ -82,6 +91,7 @@ export async function exportRevenuesToExcel(data: RevenueRow[]): Promise<Buffer>
     { header: "التاريخ", key: "date", width: 16 },
   ];
 
+  rightAlignColumns(sheet);
   styleHeader(sheet, 7);
 
   for (const row of data) {
@@ -117,6 +127,7 @@ export async function exportExpensesToExcel(data: ExpenseRow[]): Promise<Buffer>
     { header: "التاريخ", key: "date", width: 16 },
   ];
 
+  rightAlignColumns(sheet);
   styleHeader(sheet, 7);
 
   for (const row of data) {
@@ -149,6 +160,7 @@ export async function exportStudentBalancesToExcel(data: StudentBalanceRow[]): P
     { header: "الرصيد", key: "balance", width: 14 },
   ];
 
+  rightAlignColumns(sheet);
   styleHeader(sheet, 4);
 
   for (const row of data) {

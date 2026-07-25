@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { requireAuth, requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
+import { getCurrentAcademicYear } from "./academic-year-actions";
 
 const DERIVED_SOURCES = ["Payment", "Cancellation"];
 
@@ -123,23 +124,12 @@ export async function getDashboardStats() {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  // "Current academic year" isn't a stored setting -- derive it from
-  // whichever academicYear the currently-active students belong to (a
-  // promotion batch keeps this in sync by construction). Falls back to no
-  // filter (all-time) if there are no active students yet, e.g. a fresh
-  // install before any student has been created.
-  const academicYearGroups = await prisma.student.groupBy({
-    by: ["academicYear"],
-    where: { isActive: true },
-    _count: { academicYear: true },
-    orderBy: { _count: { academicYear: "desc" } },
-    take: 1,
-  });
-  const currentAcademicYear = academicYearGroups[0]?.academicYear;
-
-  const yearStudentFilter = currentAcademicYear
-    ? { student: { academicYear: currentAcademicYear } }
-    : {};
+  // The admin-set current year (Settings -> "بدء سنة دراسية جديدة"), not a
+  // heuristic guessed from student data -- a promotion batch or an early/
+  // late enrollment could otherwise skew which year "most" active students
+  // belong to away from the year the admin actually considers current.
+  const currentAcademicYear = await getCurrentAcademicYear();
+  const yearStudentFilter = { student: { academicYear: currentAcademicYear } };
 
   const [
     totalExpected,

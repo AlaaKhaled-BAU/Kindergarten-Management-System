@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Copy } from "lucide-react";
 import { GRADES, gradeLabel } from "@/lib/grades";
+import { AcademicYearSelect } from "@/components/shared/academic-year-select";
 
 interface Fee {
   id: number;
@@ -108,11 +109,11 @@ export function FeesClient({ fees: initialFees }: { fees: Fee[] }) {
             <form action={handleCopy} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="fromYear">من السنة</Label>
-                <Input id="fromYear" name="fromYear" placeholder="2025-2026" required />
+                <AcademicYearSelect name="fromYear" required className="w-full" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="toYear">إلى السنة</Label>
-                <Input id="toYear" name="toYear" placeholder="2026-2027" required />
+                <AcademicYearSelect name="toYear" includeNext required className="w-full" />
               </div>
               {copyResult && <p className="text-sm text-success">{copyResult}</p>}
               {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
@@ -152,7 +153,7 @@ export function FeesClient({ fees: initialFees }: { fees: Fee[] }) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="academicYear">السنة الدراسية</Label>
-                  <Input id="academicYear" name="academicYear" placeholder="2025-2026" required />
+                  <AcademicYearSelect name="academicYear" includeNext required className="w-full" />
                 </div>
               </div>
               <div className="space-y-2">

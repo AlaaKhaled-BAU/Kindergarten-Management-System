@@ -25,7 +25,7 @@ export default async function MonthlyPrintPage({
   const monthName = MONTH_NAMES[monthNum] ?? String(monthNum);
 
   return (
-    <div className="font-print bg-white text-black p-8 print:p-0 text-sm">
+    <div dir="rtl" className="font-print bg-white text-black text-right p-8 print:p-0 text-sm">
       <style>{"@page { size: A4 landscape; margin: 12mm; }"}</style>
       <AutoPrint />
       <PrintButton />

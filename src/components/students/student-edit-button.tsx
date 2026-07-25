@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { GRADES, gradeLabel } from "@/lib/grades";
+import { AcademicYearSelect } from "@/components/shared/academic-year-select";
 
 interface StudentEditData {
   id: number;
@@ -110,7 +111,7 @@ export function StudentEditButton({ student }: { student: StudentEditData }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-academicYear">السنة الدراسية *</Label>
-              <Input id="edit-academicYear" name="academicYear" defaultValue={student.academicYear} required />
+              <AcademicYearSelect name="academicYear" defaultValue={student.academicYear} includeNext required className="w-full" />
             </div>
           </div>
           <div className="space-y-2">

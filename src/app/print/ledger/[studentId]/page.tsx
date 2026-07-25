@@ -36,7 +36,7 @@ export default async function LedgerPrintPage({
   if (!data) notFound();
 
   return (
-    <div className="font-print bg-white text-black p-8 print:p-0 max-w-3xl mx-auto text-sm">
+    <div dir="rtl" className="font-print bg-white text-black text-right p-8 print:p-0 max-w-3xl mx-auto text-sm">
       <style>{"@page { size: A4; margin: 15mm; }"}</style>
       <AutoPrint />
       <PrintButton />
