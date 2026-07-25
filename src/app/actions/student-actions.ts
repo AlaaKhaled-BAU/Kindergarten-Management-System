@@ -297,53 +297,57 @@ export type UnpaidStudent = {
   lastPaymentDate: Date | null;
 };
 
+/**
+ * 4 queries total regardless of student count, vs the previous 3*N+1 --
+ * one balance-per-student groupBy, one distinct-studentId lookup for who
+ * paid this month, and one max-paymentDate-per-student groupBy, instead of
+ * three round-trips inside a per-student loop. Same output shape and same
+ * balance>0 filter as before.
+ */
 export async function getUnpaidStudents(): Promise<UnpaidStudent[]> {
   await requireAuth();
 
-  const students = await prisma.student.findMany({
-    where: { isActive: true },
-  });
+  const students = await prisma.student.findMany({ where: { isActive: true } });
+  if (students.length === 0) return [];
 
+  const ids = students.map((s) => s.id);
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  const [balanceRows, paidThisMonth, lastPayRows] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ["studentId"],
+      where: { studentId: { in: ids } },
+      _sum: { amount: true },
+    }),
+    prisma.payment.findMany({
+      where: { studentId: { in: ids }, paymentDate: { gte: firstDayOfMonth, lte: lastDayOfMonth } },
+      select: { studentId: true },
+      distinct: ["studentId"],
+    }),
+    prisma.payment.groupBy({
+      by: ["studentId"],
+      where: { studentId: { in: ids } },
+      _max: { paymentDate: true },
+    }),
+  ]);
+
+  const balanceById = new Map(balanceRows.map((r) => [r.studentId, roundMoney(r._sum.amount ?? 0)]));
+  const paidSet = new Set(paidThisMonth.map((p) => p.studentId));
+  const lastPayById = new Map(lastPayRows.map((r) => [r.studentId, r._max.paymentDate ?? null]));
 
   const result: UnpaidStudent[] = [];
-
   for (const student of students) {
-    const balanceAgg = await prisma.transaction.aggregate({
-      where: { studentId: student.id },
-      _sum: { amount: true },
-    });
-
-    const balance = roundMoney(balanceAgg._sum.amount ?? 0);
-
+    const balance = balanceById.get(student.id) ?? 0;
     if (balance <= 0) continue;
-
-    const paymentThisMonth = await prisma.payment.findFirst({
-      where: {
-        studentId: student.id,
-        paymentDate: {
-          gte: firstDayOfMonth,
-          lte: lastDayOfMonth,
-        },
-      },
-    });
-
-    const lastPayment = await prisma.payment.findFirst({
-      where: { studentId: student.id },
-      orderBy: { paymentDate: "desc" },
-    });
-
     result.push({
       id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       grade: student.grade,
       balance,
-      hasPaidThisMonth: !!paymentThisMonth,
-      lastPaymentDate: lastPayment?.paymentDate ?? null,
+      hasPaidThisMonth: paidSet.has(student.id),
+      lastPaymentDate: lastPayById.get(student.id) ?? null,
     });
   }
 
@@ -359,6 +363,27 @@ export async function getStudentBalance(studentId: number): Promise<number> {
   });
 
   return roundMoney(result._sum.amount ?? 0);
+}
+
+/**
+ * Batched balance lookup: one groupBy instead of one aggregate per student
+ * (used by /students, which previously ran getStudentBalance in a
+ * Promise.all loop -- N round-trips, each re-verifying the auth cookie).
+ * Students with no transactions simply don't appear in the map; callers
+ * default them to 0.
+ */
+export async function getStudentBalances(studentIds: number[]): Promise<Map<number, number>> {
+  await requireAuth();
+
+  if (studentIds.length === 0) return new Map();
+
+  const grouped = await prisma.transaction.groupBy({
+    by: ["studentId"],
+    where: { studentId: { in: studentIds } },
+    _sum: { amount: true },
+  });
+
+  return new Map(grouped.map((g) => [g.studentId, roundMoney(g._sum.amount ?? 0)]));
 }
 
 export async function getStudentLedger(studentId: number) {

@@ -1,4 +1,4 @@
-import { getAllStudents, getStudentBalance } from "@/app/actions/student-actions";
+import { getAllStudents, getStudentBalances } from "@/app/actions/student-actions";
 import { StudentsTable } from "@/components/students/students-table";
 import { PromotionDialog } from "@/components/students/promotion-dialog";
 import { getAuthRole } from "@/lib/auth";
@@ -8,12 +8,11 @@ export const dynamic = "force-dynamic";
 export default async function StudentsPage() {
   const [students, role] = await Promise.all([getAllStudents(), getAuthRole()]);
 
-  const studentsWithBalance = await Promise.all(
-    students.map(async (student) => ({
-      ...student,
-      balance: await getStudentBalance(student.id),
-    }))
-  );
+  const balances = await getStudentBalances(students.map((s) => s.id));
+  const studentsWithBalance = students.map((student) => ({
+    ...student,
+    balance: balances.get(student.id) ?? 0,
+  }));
 
   return (
     <div className="space-y-6">
