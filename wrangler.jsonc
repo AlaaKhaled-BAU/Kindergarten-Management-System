@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kindergarten-erp",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "c4e8160d5df440899e60858435ff787d",
+      "localConnectionString": "${HYPERDRIVE_LOCAL_CONNECTION_STRING}"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
