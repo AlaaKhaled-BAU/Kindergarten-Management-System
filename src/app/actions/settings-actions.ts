@@ -2,6 +2,7 @@
 
 import { logEvent } from "@/lib/logger";
 import { getSetting, setSetting } from "@/lib/settings";
+import { readSyncState, writeSyncState } from "@/lib/sync-state";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { requireAdmin, validateRequiredString } from "./validation";
 
@@ -59,4 +60,23 @@ export async function changeAdminPassword(
 
   await setSetting("adminPasswordHash", hashPassword(newPassword));
   await logEvent("admin_password_changed", { actor });
+}
+
+export interface SyncConfig {
+  workerUrl: string;
+  token: string;
+}
+
+export async function getSyncConfig(): Promise<SyncConfig> {
+  await requireAdmin();
+  const state = readSyncState();
+  return { workerUrl: state.workerUrl ?? "", token: state.token ?? "" };
+}
+
+// Empty values are valid here (they mean "sync disabled"), so this
+// deliberately skips validateRequiredString.
+export async function updateSyncConfig(input: SyncConfig): Promise<void> {
+  const actor = await requireAdmin();
+  writeSyncState({ workerUrl: input.workerUrl.trim(), token: input.token.trim() });
+  await logEvent("sync_config_updated", { actor });
 }

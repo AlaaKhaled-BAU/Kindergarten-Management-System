@@ -9,8 +9,15 @@ import {
   Percent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getAuthRole } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
+  const role = await getAuthRole();
+  if (role !== "admin") {
+    redirect(role ? "/students" : "/login");
+  }
+
   const [stats, unpaidStudents] = await Promise.all([
     getDashboardStats(),
     getUnpaidStudents(),

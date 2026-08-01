@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "./prisma";
 
@@ -58,61 +56,8 @@ export async function seedDefaultFees(client: PrismaClient = prisma): Promise<vo
  * every later migration (indexes, future columns) on packaged installs.
  */
 export async function ensureDatabaseReady(): Promise<void> {
-  // Avoids spurious "database is locked" errors when a mutation and a
-  // background read briefly overlap. Does NOT change the on-disk format, so
-  // it has zero effect on createBackup's plain file copy. WAL mode is
-  // deliberately NOT enabled: it keeps recent commits in a "-wal" sidecar
-  // file, and createBackup() copies only the ".db" file, so WAL would make
-  // backups silently miss the newest data unless paired with a
-  // wal_checkpoint(TRUNCATE) first -- out of scope until backup is rewritten.
-  await prisma.$queryRawUnsafe(`PRAGMA busy_timeout=5000`);
-
-  const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
-  // Timestamp-prefixed names (Prisma's convention) sort chronologically.
-  const migrations = fs
-    .readdirSync(migrationsDir)
-    .filter((d) => fs.existsSync(path.join(migrationsDir, d, "migration.sql")))
-    .sort();
-
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "_kg_migrations" ("name" TEXT PRIMARY KEY, "appliedAt" TEXT NOT NULL)`
-  );
-  const appliedRows = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
-    `SELECT "name" FROM "_kg_migrations"`
-  );
-  const applied = new Set(appliedRows.map((r) => r.name));
-
-  for (const name of migrations) {
-    if (applied.has(name)) continue;
-
-    const sql = fs.readFileSync(
-      path.join(migrationsDir, name, "migration.sql"),
-      "utf-8"
-    );
-    const statements = sql
-      .replace(/--[^\n]*/g, "") // strip SQL line comments, wherever they sit
-      .split(";")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    for (const statement of statements) {
-      try {
-        await prisma.$executeRawUnsafe(statement);
-      } catch (err) {
-        // "already exists" => this DDL was applied by an earlier interrupted
-        // run or by `prisma migrate` in dev. Idempotent skip; re-throw a real
-        // DDL failure so a broken migration surfaces instead of silently
-        // half-applying.
-        if (!/already exists|duplicate column/i.test(String(err))) throw err;
-      }
-    }
-
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "_kg_migrations" ("name", "appliedAt") VALUES (?, ?)`,
-      name,
-      new Date().toISOString()
-    );
-  }
-
+  // Online-first (Postgres) mode: the schema is created by `prisma migrate
+  // deploy` at deploy time -- the SQLite-era custom runner below is gone.
+  // This hook now only seeds default fees on a fresh database.
   await seedDefaultFees(prisma);
 }

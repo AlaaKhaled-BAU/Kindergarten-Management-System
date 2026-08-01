@@ -5,6 +5,15 @@ import { Button } from "@/components/ui/button";
 import { createBackup } from "@/app/actions/backup-actions";
 import { HardDrive } from "lucide-react";
 
+function base64ToBlob(base64: string, mime: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
 export function BackupButton() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -18,10 +27,21 @@ export function BackupButton() {
 
     try {
       const result = await createBackup();
-      if (result.success) {
+      if (result.success && result.download) {
+        const blob = result.download.base64
+          ? base64ToBlob(result.download.base64, result.download.mime)
+          : new Blob([result.download.text ?? ""], {
+              type: result.download.mime,
+            });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = result.fileName ?? "backup";
+        a.click();
+        URL.revokeObjectURL(url);
         setMessage({
           type: "success",
-          text: `تم إنشاء النسخة الاحتياطية: ${result.filePath}`,
+          text: `تم إنشاء النسخة الاحتياطية وبدء التحميل: ${result.fileName}`,
         });
       } else {
         setMessage({

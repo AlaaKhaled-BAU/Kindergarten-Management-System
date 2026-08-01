@@ -3,7 +3,7 @@
 import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { updateKindergartenInfo, changeAdminPassword, type KindergartenInfo } from "@/app/actions/settings-actions";
+import { updateKindergartenInfo, changeAdminPassword, updateSyncConfig, type KindergartenInfo, type SyncConfig } from "@/app/actions/settings-actions";
 import { startNewAcademicYear } from "@/app/actions/academic-year-actions";
 import { nextAcademicYear } from "@/lib/academic-year";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight } from "lucide-react";
 
-export function SettingsClient({ info, currentAcademicYear }: { info: KindergartenInfo; currentAcademicYear: string }) {
+export function SettingsClient({
+  info,
+  currentAcademicYear,
+  syncConfig,
+}: {
+  info: KindergartenInfo;
+  currentAcademicYear: string;
+  syncConfig: SyncConfig;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +33,10 @@ export function SettingsClient({ info, currentAcademicYear }: { info: Kindergart
   const [yearPending, setYearPending] = useState(false);
   const [yearError, setYearError] = useState<string | null>(null);
   const [activeYear, setActiveYear] = useState(currentAcademicYear);
+
+  const [syncPending, setSyncPending] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSaved, setSyncSaved] = useState(false);
 
   async function handleStartNewYear() {
     setYearError(null);
@@ -57,6 +69,23 @@ export function SettingsClient({ info, currentAcademicYear }: { info: Kindergart
       setError(errorMessage(err));
     } finally {
       setPending(false);
+    }
+  }
+
+  async function handleSyncSubmit(formData: FormData) {
+    setSyncError(null);
+    setSyncSaved(false);
+    setSyncPending(true);
+    try {
+      await updateSyncConfig({
+        workerUrl: formData.get("workerUrl") as string,
+        token: formData.get("token") as string,
+      });
+      setSyncSaved(true);
+    } catch (err) {
+      setSyncError(errorMessage(err));
+    } finally {
+      setSyncPending(false);
     }
   }
 
@@ -138,6 +167,32 @@ export function SettingsClient({ info, currentAcademicYear }: { info: Kindergart
             {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
             <Button type="submit" disabled={pending}>
               {pending ? "جارٍ الحفظ..." : "حفظ"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>مزامنة قاعدة البيانات بين الأجهزة</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={handleSyncSubmit} className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              اتركهما فارغين لتعطيل المزامنة. عند الإغلاق يرفع الجهاز نسخة قاعدة البيانات، وعند الفتح يسحب أحدث نسخة. يجب استخدام نفس الرابط والرمز على كل الأجهزة.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="workerUrl">رابط خادم المزامنة</Label>
+              <Input id="workerUrl" name="workerUrl" type="url" defaultValue={syncConfig.workerUrl} placeholder="https://kindergarten-sync-worker.example.workers.dev" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="token">رمز المزامنة السري</Label>
+              <Input id="token" name="token" type="password" defaultValue={syncConfig.token} />
+            </div>
+            {syncSaved && <p className="text-sm text-success">تم الحفظ بنجاح</p>}
+            {syncError && <p className="text-sm text-destructive" role="alert">{syncError}</p>}
+            <Button type="submit" disabled={syncPending}>
+              {syncPending ? "جارٍ الحفظ..." : "حفظ"}
             </Button>
           </form>
         </CardContent>
