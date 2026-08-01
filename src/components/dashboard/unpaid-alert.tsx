@@ -18,7 +18,7 @@ export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
   if (students.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+    <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex items-center gap-3">
         <AlertTriangle className="size-5 shrink-0 text-amber-600" />
         <span className="text-sm font-medium">
@@ -29,14 +29,14 @@ export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
 
       <Dialog>
         <DialogTrigger
-          render={<Button variant="outline">عرض التفاصيل</Button>}
+          render={<Button variant="outline" className="w-full shrink-0 sm:w-auto">عرض التفاصيل</Button>}
         />
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>الطلاب المتأخرون عن الدفع</DialogTitle>
           </DialogHeader>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b text-start">
                   <th className="pb-2 text-start font-medium text-muted-foreground">

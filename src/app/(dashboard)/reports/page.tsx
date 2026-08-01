@@ -12,7 +12,7 @@ export default function ReportsPage() {
       <h1 className="text-2xl font-bold">التقارير</h1>
 
       <Tabs defaultValue="summary">
-        <TabsList>
+        <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="summary">التقرير الشهري</TabsTrigger>
           <TabsTrigger value="receipt">سند قبض</TabsTrigger>
           <TabsTrigger value="ledger">كشف حساب طالب</TabsTrigger>

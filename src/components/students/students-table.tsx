@@ -119,8 +119,8 @@ export function StudentsTable({
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:flex-1 sm:max-w-sm">
             <Search className="absolute end-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="بحث عن طالب..."
@@ -130,7 +130,7 @@ export function StudentsTable({
             />
           </div>
           <Select value={gradeFilter} onValueChange={(v) => setGradeFilter(v ?? "all")}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="الصف">
                 {(value: string) => (value === "all" ? "الكل" : gradeLabel(value))}
               </SelectValue>
@@ -146,7 +146,7 @@ export function StudentsTable({
             value={yearFilter}
             onValueChange={(v) => setYearFilter(v ?? "all")}
             showAll
-            className="w-36"
+            className="w-full sm:w-36"
             placeholder="السنة"
           />
         </div>
@@ -310,8 +310,8 @@ export function StudentsTable({
         </Dialog>
       </div>
 
-      <div className="rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-start">#</th>

@@ -32,7 +32,7 @@ export default async function StudentProfilePage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">
             {student.firstName} {student.lastName}
@@ -159,7 +159,7 @@ export default async function StudentProfilePage({
                 </p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[640px] text-sm">
                     <thead>
                       <tr className="border-b text-start">
                         <th className="py-2 px-3 text-start">التاريخ</th>

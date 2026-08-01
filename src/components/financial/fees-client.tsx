@@ -169,8 +169,8 @@ export function FeesClient({ fees: initialFees }: { fees: Fee[] }) {
         </Dialog>
       </div>
 
-      <div className="rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-start">الاسم</th>

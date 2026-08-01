@@ -108,9 +108,9 @@ export function ExpensesPageClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">المصروفات</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={handleExport}>
             <Download className="me-2 size-4" />
             تصدير إلى Excel
@@ -238,8 +238,8 @@ export function ExpensesPageClient({
         </div>
       </div>
 
-      <div className="rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-end">#</th>

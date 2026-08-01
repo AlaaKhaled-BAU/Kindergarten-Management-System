@@ -141,7 +141,7 @@ export function PaymentsPageClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">المدفوعات والإيصالات</h1>
         <Dialog
           open={open}
@@ -151,7 +151,7 @@ export function PaymentsPageClient({
           }}
         >
           <DialogTrigger
-            render={<Button>إصدار سند قبض جديد</Button>}
+            render={<Button className="w-full sm:w-auto">إصدار سند قبض جديد</Button>}
           />
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -240,8 +240,8 @@ export function PaymentsPageClient({
         />
       </div>
 
-      <div className="rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-start">رقم الإيصال</th>
