@@ -14,6 +14,14 @@ trap 'if [ -f /tmp/instrumentation.ts.cf ]; then mv /tmp/instrumentation.ts.cf i
 
 npx opennextjs-cloudflare build
 
+# Wrangler 4.x auto-delegates `wrangler deploy` to `opennextjs-cloudflare
+# deploy` whenever open-next.config.ts is present, and that delegation runs
+# Miniflare validation that chokes on the unsubstituted
+# ${HYPERDRIVE_LOCAL_CONNECTION_STRING} (CI has no env) and previously broke
+# the worker twice. The built worker is self-contained, so drop the config to
+# force plain `wrangler deploy` uploads.
+rm -f open-next.config.ts
+
 SF=".open-next/server-functions/default"
 NODE_MODS="$SF/node_modules"
 
