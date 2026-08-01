@@ -40,7 +40,25 @@ function createClient(): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? createClient();
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createClient();
+  }
+  return globalForPrisma.prisma;
+}
+
+// Lazy singleton. `next build` evaluates module top-level code for page-data
+// collection (e.g. /api/internal/sync-push) with NO env/DATABASE_URL and NO
+// Cloudflare context -- constructing eagerly there throws and fails CI
+// builds. Defer real construction until the first property access (first
+// query at runtime).
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getPrisma();
+    const value = Reflect.get(client, prop, receiver);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+}) as PrismaClient;
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
