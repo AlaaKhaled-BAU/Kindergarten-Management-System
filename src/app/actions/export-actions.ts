@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth, requireAdmin } from "@/app/actions/validation";
+import { requireAdmin } from "@/app/actions/validation";
 import { roundMoney } from "@/lib/utils";
 import {
   exportRevenuesToExcel,
@@ -10,10 +10,10 @@ import {
 } from "@/lib/excel-utils";
 
 export async function exportRevenues(year?: number) {
-  await requireAuth();
+  await requireAdmin();
 
   const revenues = await prisma.revenue.findMany({
-    where: year ? { year } : undefined,
+    where: { isActive: true, ...(year ? { year } : {}) },
     orderBy: { recordDate: "desc" },
   });
 
@@ -35,10 +35,10 @@ export async function exportRevenues(year?: number) {
 }
 
 export async function exportExpenses(year?: number) {
-  await requireAuth();
+  await requireAdmin();
 
   const expenses = await prisma.expense.findMany({
-    where: year ? { year } : undefined,
+    where: { isActive: true, ...(year ? { year } : {}) },
     orderBy: { expenseDate: "desc" },
   });
 

@@ -51,11 +51,15 @@ interface Student {
 export function PaymentsPageClient({
   receipts: initialReceipts,
   students,
+  balances,
   canCancel,
+  nextReceiptNumber,
 }: {
   receipts: Receipt[];
   students: Student[];
+  balances: Record<string, number>;
   canCancel: boolean;
+  nextReceiptNumber: number;
 }) {
   const router = useRouter();
   const [receipts, setReceipts] = useState(initialReceipts);
@@ -66,6 +70,12 @@ export function PaymentsPageClient({
   const [pending, setPending] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [payStudentId, setPayStudentId] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payReceiptNumber, setPayReceiptNumber] = useState(nextReceiptNumber);
+
+  const isOverpay =
+    !!payStudentId && !!payAmount && parseFloat(payAmount) > (balances[payStudentId] ?? 0) + 0.001;
 
   const filtered = receipts.filter((r) => {
     if (!search) return true;
@@ -87,6 +97,7 @@ export function PaymentsPageClient({
         paymentMethod: formData.get("paymentMethod") as string,
         referenceNumber: (formData.get("referenceNumber") as string) || undefined,
         notes: (formData.get("notes") as string) || undefined,
+        receiptNumber: parseInt(formData.get("receiptNumber") as string),
       });
 
       setReceipts((prev) => [
@@ -101,6 +112,7 @@ export function PaymentsPageClient({
       ]);
       setOpen(false);
       router.refresh();
+      setPayReceiptNumber((prev) => prev + 1);
     } catch (err) {
       setPaymentError(errorMessage(err));
     } finally {
@@ -147,7 +159,12 @@ export function PaymentsPageClient({
           open={open}
           onOpenChange={(v) => {
             setOpen(v);
-            if (!v) setPaymentError(null);
+            if (!v) {
+              setPaymentError(null);
+              setPayStudentId("");
+              setPayAmount("");
+              setPayReceiptNumber(nextReceiptNumber);
+            }
           }}
         >
           <DialogTrigger
@@ -159,8 +176,24 @@ export function PaymentsPageClient({
             </DialogHeader>
             <form action={handlePayment} className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="receiptNumber">رقم الوصل *</Label>
+                <Input
+                  id="receiptNumber"
+                  name="receiptNumber"
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                  value={payReceiptNumber}
+                  onChange={(e) => {
+                    setPayReceiptNumber(parseInt(e.target.value || "0", 10));
+                    setPaymentError(null);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="studentId">الطالب *</Label>
-                <Select name="studentId" required>
+                <Select name="studentId" required value={payStudentId} onValueChange={(v) => { setPayStudentId(v ?? ""); setPaymentError(null); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="اختر الطالب" />
                   </SelectTrigger>
@@ -182,8 +215,22 @@ export function PaymentsPageClient({
                   min="0.01"
                   step="0.01"
                   required
+                  value={payAmount}
+                  onChange={(e) => { setPayAmount(e.target.value); setPaymentError(null); }}
                 />
               </div>
+              {isOverpay && (
+                <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p>
+                    المبلغ أكبر من الرصيد المستحق (
+                    {(balances[payStudentId] ?? 0).toFixed(2)} د.أ) — سيترك رصيداً دائناً للطالب.
+                  </p>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" name="confirmOverpay" required className="size-4" />
+                    <span>أؤكد أن المبلغ صحيح</span>
+                  </label>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="paymentDate">تاريخ الدفع *</Label>
                 <Input

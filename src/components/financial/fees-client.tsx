@@ -133,7 +133,7 @@ export function FeesClient({ fees: initialFees }: { fees: Fee[] }) {
             <form action={handleCreate} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">اسم الرسم</Label>
-                <Input id="name" name="name" placeholder="رسوم صف الروضة الأولى" required />
+                <Input id="name" name="name" placeholder="رسوم KG1" required />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -141,7 +141,7 @@ export function FeesClient({ fees: initialFees }: { fees: Fee[] }) {
                   <Select name="applicableGrade" required>
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الصف">
-                        {(value: string) => gradeLabel(value)}
+                        {(value: string) => (value ? gradeLabel(value) : "اختر الصف")}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

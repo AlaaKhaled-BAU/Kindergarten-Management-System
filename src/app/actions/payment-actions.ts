@@ -4,7 +4,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { getSetting } from "@/lib/settings";
-import { requireAuth, requireAdmin, validatePositiveNumber } from "./validation";
+import { requireAuth, requireAdmin, assertValidFinancialDate, validatePositiveNumber } from "./validation";
+import { roundMoney } from "@/lib/utils";
 
 interface ProcessPaymentInput {
   studentId: number;
@@ -13,6 +14,8 @@ interface ProcessPaymentInput {
   paymentMethod: string;
   referenceNumber?: string;
   notes?: string;
+  /** Optional explicit VouNo. Defaults to MAX(existing)+1 when omitted. */
+  receiptNumber?: number;
 }
 
 interface CancelReceiptInput {
@@ -41,6 +44,29 @@ export async function processPayment(input: ProcessPaymentInput) {
   const actor = await requireAuth();
 
   validatePositiveNumber(input.amount, "المبلغ");
+  assertValidFinancialDate(new Date(input.paymentDate), "تاريخ الدفع");
+
+  if (input.receiptNumber !== undefined) {
+    if (
+      !Number.isInteger(input.receiptNumber) ||
+      input.receiptNumber <= 0 ||
+      input.receiptNumber > 2_147_483_647
+    ) {
+      throw new Error("رقم الوصل يجب أن يكون رقماً صحيحاً موجباً");
+    }
+    const existing = await prisma.receipt.findUnique({
+      where: { receiptNumber: input.receiptNumber },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new Error(`رقم الوصل ${input.receiptNumber} مستخدم مسبقاً`);
+    }
+  }
+
+  const maxPaymentAmount = Number((await getSetting("maxPaymentAmount")) ?? 0);
+  if (maxPaymentAmount > 0 && input.amount > maxPaymentAmount) {
+    throw new Error(`لا يمكن أن يتجاوز مبلغ الدفع ${maxPaymentAmount} ديناراً`);
+  }
 
   for (let attempt = 1; attempt <= MAX_RECEIPT_ATTEMPTS; attempt++) {
     try {
@@ -54,6 +80,13 @@ export async function processPayment(input: ProcessPaymentInput) {
   throw new Error("تعذر إصدار الإيصال، الرجاء المحاولة مرة أخرى");
 }
 
+/** Next suggested VouNo: MAX(existing, active or canceled) + 1. */
+export async function getNextReceiptNumber(): Promise<number> {
+  await requireAuth();
+  const max = await prisma.receipt.aggregate({ _max: { receiptNumber: true } });
+  return (max._max.receiptNumber ?? 0) + 1;
+}
+
 async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) {
   return prisma.$transaction(async (tx) => {
     const student = await tx.student.findUniqueOrThrow({
@@ -65,16 +98,20 @@ async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) 
     }
 
     const kgName = (await getSetting("kindergartenName")) ?? "الروضة";
+    const amount = roundMoney(input.amount);
 
-    const maxReceipt = await tx.receipt.aggregate({
-      _max: { receiptNumber: true },
-    });
-    const nextReceiptNumber = (maxReceipt._max.receiptNumber ?? 0) + 1;
+    let nextReceiptNumber = input.receiptNumber;
+    if (nextReceiptNumber === undefined) {
+      const maxReceipt = await tx.receipt.aggregate({
+        _max: { receiptNumber: true },
+      });
+      nextReceiptNumber = (maxReceipt._max.receiptNumber ?? 0) + 1;
+    }
 
     const payment = await tx.payment.create({
       data: {
         studentId: input.studentId,
-        amount: input.amount,
+        amount,
         paymentDate: new Date(input.paymentDate),
         paymentMethod: input.paymentMethod,
         referenceNumber: input.referenceNumber ?? null,
@@ -87,7 +124,7 @@ async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) 
         receiptNumber: nextReceiptNumber,
         paymentId: payment.id,
         issueDate: new Date(input.paymentDate),
-        amount: input.amount,
+        amount,
         studentName: `${student.firstName} ${student.lastName}`,
         kindergartenName: kgName,
       },
@@ -97,7 +134,7 @@ async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) 
       data: {
         studentId: input.studentId,
         transactionType: "Payment",
-        amount: -input.amount,
+        amount: -amount,
         transactionDate: new Date(input.paymentDate),
         description: "دفعة نقدية",
         referenceId: `Receipt:${nextReceiptNumber}`,
@@ -111,7 +148,7 @@ async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) 
         year: paymentDate.getFullYear(),
         month: paymentDate.getMonth() + 1,
         category: "رسوم دراسية",
-        amount: input.amount,
+        amount,
         description: `دفعة من الطالب: ${student.firstName} ${student.lastName}`,
         recordDate: new Date(),
         source: "Payment",
@@ -146,9 +183,26 @@ export async function cancelReceipt(input: CancelReceiptInput) {
       },
     });
 
+    // If the student was promoted after this payment, the credit now lives
+    // on the transferred balance -- post the Reversal there, not on the
+    // old (inactive) student where it would be invisible.
+    const transfer = await tx.transaction.findFirst({
+      where: {
+        studentId: receipt.payment.studentId,
+        transactionType: "BalanceTransferOut",
+        transactionDate: { gt: receipt.payment.paymentDate },
+      },
+      orderBy: { transactionDate: "asc" },
+    });
+    let reversalStudentId = receipt.payment.studentId;
+    if (transfer?.referenceId) {
+      const targetId = Number(transfer.referenceId.replace("Promotion:To:", ""));
+      if (!Number.isNaN(targetId)) reversalStudentId = targetId;
+    }
+
     await tx.transaction.create({
       data: {
-        studentId: receipt.payment.studentId,
+        studentId: reversalStudentId,
         transactionType: "Reversal",
         amount: receipt.amount,
         transactionDate: new Date(),

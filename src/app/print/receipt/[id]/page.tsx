@@ -32,10 +32,18 @@ export default async function ReceiptPrintPage({
     // A5-landscape halves) -- one for the kindergarten's own records, one
     // for the parent, meant to be cut along the dashed line. Printing one
     // A5 receipt at a time wasted a full sheet of paper per payment.
-    <div className="font-print bg-white text-black print:p-0">
+    <div className="relative font-print bg-white text-black print:p-0">
       <style>{"@page { size: A4 portrait; margin: 10mm; }"}</style>
       <AutoPrint />
       <PrintButton />
+
+      {data.isCanceled && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <div className="-rotate-30 rounded-lg border-8 border-red-600/60 px-8 py-3 text-6xl font-bold text-red-600/60">
+            إيصال ملغي
+          </div>
+        </div>
+      )}
 
       <div className="h-[134mm]">
         <ReceiptCopy data={data} contactLine={contactLine} email={email} copyLabel="نسخة الروضة" />
@@ -93,6 +101,12 @@ function ReceiptCopy({
         <h2 className="text-lg font-bold underline">سند قبض</h2>
         <div className="text-sm font-bold">رقم {String(data.receiptNumber).padStart(5, "0")}</div>
       </div>
+
+      {data.isCanceled && (
+        <p className="text-center text-xs font-bold text-red-700 mb-2">
+          ملغي بتاريخ {data.cancelDate ?? "—"}{data.cancelReason ? ` — السبب: ${data.cancelReason}` : ""}
+        </p>
+      )}
 
       <InfoRow label="التاريخ" value={data.issueDate} />
       <InfoRow label="وصلنا من ولي أمر الطالب" value={data.studentName} />

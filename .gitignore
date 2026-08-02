@@ -58,3 +58,7 @@ next-env.d.ts
 /.wrangler
 /cloudflare-env.d.ts
 .gstack/
+*.cookie.mjs
+
+# scratch QA harness
+/qa-tests

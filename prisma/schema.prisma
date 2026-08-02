@@ -146,6 +146,7 @@ model Revenue {
   description String?
   recordDate  DateTime
   source      String?
+  isActive    Boolean  @default(true)
 
   @@index([year, month])
 }
@@ -161,6 +162,7 @@ model Expense {
   vendor          String?
   referenceNumber String?
   source          String?
+  isActive        Boolean  @default(true)
 
   @@index([year, month])
 }

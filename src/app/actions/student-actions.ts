@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { requireAuth, requireAdmin, validateRequiredString } from "./validation";
+import { requireAuth, requireAdmin, validateNonNegativeNumber, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
 
 interface CreateStudentInput {
@@ -135,6 +135,14 @@ export async function createStudent(input: CreateStudentInput) {
   const discountIsPercent = input.discountIsPercent ?? false;
   const tuitionOverride = input.tuitionOverride ?? null;
 
+  validateNonNegativeNumber(busFees, "رسوم الباص");
+  validateNonNegativeNumber(additionalFees, "رسوم إضافية");
+  validateNonNegativeNumber(discountValue, "الخصم");
+  if (tuitionOverride !== null) validateNonNegativeNumber(tuitionOverride, "الرسوم الدراسية");
+  if (discountIsPercent && discountValue > 100) {
+    throw new Error("الخصم بالنسبة المئوية لا يمكن أن يتجاوز 100%");
+  }
+
   return prisma.$transaction(async (tx) => {
     const student = await tx.student.create({
       data: {
@@ -206,7 +214,7 @@ export async function createStudent(input: CreateStudentInput) {
 }
 
 export async function updateStudent(id: number, input: UpdateStudentInput) {
-  const actor = await requireAuth();
+  const actor = await requireAdmin();
 
   return prisma.$transaction(async (tx) => {
     const current = await tx.student.findUniqueOrThrow({ where: { id } });
@@ -218,6 +226,14 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
     const newGrade = input.grade ?? current.grade;
     const newAcademicYear = input.academicYear ?? current.academicYear;
     const newTuitionOverride = input.tuitionOverride !== undefined ? input.tuitionOverride : current.tuitionOverride;
+
+    validateNonNegativeNumber(newBusFees, "رسوم الباص");
+    validateNonNegativeNumber(newAdditionalFees, "رسوم إضافية");
+    validateNonNegativeNumber(newDiscountValue, "الخصم");
+    if (newTuitionOverride !== null) validateNonNegativeNumber(newTuitionOverride, "الرسوم الدراسية");
+    if (newDiscountIsPercent && newDiscountValue > 100) {
+      throw new Error("الخصم بالنسبة المئوية لا يمكن أن يتجاوز 100%");
+    }
 
     const oldTuition = current.tuitionOverride ?? await getDefaultTuition(tx, current.grade, current.academicYear);
     const newTuition = newTuitionOverride ?? await getDefaultTuition(tx, newGrade, newAcademicYear);
@@ -327,7 +343,10 @@ export async function getUnpaidStudents(): Promise<UnpaidStudent[]> {
     }),
     prisma.payment.groupBy({
       by: ["studentId"],
-      where: { studentId: { in: ids } },
+      where: {
+        studentId: { in: ids },
+        receipts: { none: { isCanceled: true } },
+      },
       _max: { paymentDate: true },
     }),
   ]);
@@ -450,6 +469,62 @@ export async function setStudentActive(id: number, isActive: boolean) {
   });
   await logEvent(isActive ? "student_reactivated" : "student_deactivated", { studentId: id, actor });
   return updated;
+}
+
+/**
+ * Withdrawal: marks the student inactive + exitStatus=1 and settles the
+ * ledger to the agreed remaining amount. The parent may be excused part of
+ * the fees, so the delta between the current balance and the agreed
+ * remaining is posted as a negative Adjustment (write-off). Refuses a
+ * remaining amount that exceeds the current balance (can't owe MORE by
+ * leaving).
+ */
+export async function withdrawStudent(id: number, remainingAmount: number) {
+  const actor = await requireAdmin();
+
+  validateNonNegativeNumber(remainingAmount, "المبلغ المتبقي");
+
+  return prisma.$transaction(async (tx) => {
+    const student = await tx.student.findUniqueOrThrow({ where: { id } });
+    if (!student.isActive) {
+      throw new Error("الطالب غير نشط مسبقاً");
+    }
+
+    const balance = await tx.transaction.aggregate({
+      where: { studentId: id },
+      _sum: { amount: true },
+    });
+    const currentBalance = roundMoney(balance._sum.amount ?? 0);
+
+    if (remainingAmount > currentBalance + 0.001) {
+      throw new Error(
+        `المبلغ المتبقي لا يمكن أن يتجاوز الرصيد الحالي (${currentBalance.toFixed(2)} د.أ)`
+      );
+    }
+
+    const writeOff = roundMoney(currentBalance - remainingAmount);
+    if (writeOff > 0) {
+      await tx.transaction.create({
+        data: {
+          studentId: id,
+          transactionType: "Adjustment",
+          amount: -writeOff,
+          transactionDate: new Date(),
+          description: `تسوية انسحاب: إعفاء ${writeOff.toFixed(2)} د.أ`,
+          referenceId: `Withdrawal:${id}`,
+          createdBy: actor,
+        },
+      });
+    }
+
+    await tx.student.update({
+      where: { id },
+      data: { isActive: false, exitStatus: 1 },
+    });
+
+    await logEvent("student_withdrawn", { studentId: id, remaining: remainingAmount, writeOff, actor });
+    return { remaining: remainingAmount, writeOff, previousBalance: currentBalance };
+  });
 }
 
 function getEffectiveDiscount(

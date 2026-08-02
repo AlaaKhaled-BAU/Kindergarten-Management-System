@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
+import { roundMoney } from "@/lib/utils";
 
 interface FeeInput {
   name: string;
@@ -32,10 +33,28 @@ export async function createFee(input: FeeInput) {
   validateRequiredString(input.academicYear, "السنة الدراسية");
   validatePositiveNumber(input.amount, "المبلغ");
 
+  // ponytail: app-level guard instead of DB @@unique — prod schema can't be
+  // migrated without a migrate-deploy pipeline; add
+  // @@unique([applicableGrade, academicYear, feeType, isActive]) to
+  // prisma/schema.prisma once one exists.
+  const dup = await prisma.fee.findFirst({
+    where: {
+      applicableGrade: input.applicableGrade,
+      academicYear: input.academicYear,
+      feeType: input.feeType ?? "Monthly",
+      isActive: true,
+    },
+  });
+  if (dup) {
+    throw new Error(
+      `يوجد رسم نشط مسبقاً لهذا الصف والسنة (${dup.name} - ${dup.amount})`
+    );
+  }
+
   const fee = await prisma.fee.create({
     data: {
       name: input.name,
-      amount: input.amount,
+      amount: roundMoney(input.amount),
       applicableGrade: input.applicableGrade,
       academicYear: input.academicYear,
       feeType: input.feeType ?? "Monthly",
@@ -50,11 +69,13 @@ export async function createFee(input: FeeInput) {
 export async function updateFee(id: number, input: Partial<FeeInput> & { isActive?: boolean }) {
   await requireAdmin();
 
+  if (input.amount !== undefined) validatePositiveNumber(input.amount, "المبلغ");
+
   const fee = await prisma.fee.update({
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
-      ...(input.amount !== undefined && { amount: input.amount }),
+      ...(input.amount !== undefined && { amount: roundMoney(input.amount) }),
       ...(input.applicableGrade !== undefined && { applicableGrade: input.applicableGrade }),
       ...(input.academicYear !== undefined && { academicYear: input.academicYear }),
       ...(input.description !== undefined && { description: input.description }),
@@ -68,8 +89,8 @@ export async function updateFee(id: number, input: Partial<FeeInput> & { isActiv
 
 export async function deleteFee(id: number) {
   await requireAdmin();
-  await prisma.fee.delete({ where: { id } });
-  await logEvent("fee_deleted", { feeId: id });
+  await prisma.fee.update({ where: { id }, data: { isActive: false } });
+  await logEvent("fee_soft_deleted", { feeId: id });
 }
 
 /**

@@ -132,7 +132,7 @@ export function StudentsTable({
           <Select value={gradeFilter} onValueChange={(v) => setGradeFilter(v ?? "all")}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="الصف">
-                {(value: string) => (value === "all" ? "الكل" : gradeLabel(value))}
+                {(value: string) => (!value ? "الصف" : value === "all" ? "الكل" : gradeLabel(value))}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -190,7 +190,7 @@ export function StudentsTable({
                   <Select name="grade" required>
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الصف">
-                        {(value: string) => gradeLabel(value)}
+                        {(value: string) => (value ? gradeLabel(value) : "اختر الصف")}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

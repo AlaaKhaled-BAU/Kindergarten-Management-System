@@ -6,6 +6,9 @@ import { MONTH_INDEX } from "@/lib/excel-utils";
 import { logEvent } from "@/lib/logger";
 import ExcelJS from "exceljs";
 
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+const MAX_IMPORT_ROWS = 10_000;
+
 function parseMonth(raw: unknown): number {
   if (typeof raw === "number" && raw >= 1 && raw <= 12) return raw;
   const str = String(raw ?? "").trim();
@@ -32,9 +35,20 @@ function parseDate(raw: unknown): Date {
     if (isNaN(raw.getTime())) throw new Error("التاريخ غير صالح");
     return raw;
   }
-  const str = String(raw ?? "").trim();
-  const d = new Date(str);
-  if (isNaN(d.getTime())) throw new Error(`التاريخ غير صالح: "${str}"`);
+  let d: Date;
+  if (typeof raw === "number") {
+    // Excel serial: days since 1899-12-30
+    d = new Date(Math.round((raw - 25569) * 86400_000));
+  } else {
+    const str = String(raw ?? "").trim();
+    // All-digits cell is an Excel serial in disguise (e.g. 44123), which
+    // new Date("44123") would read as year 44123.
+    if (/^\d{4,6}$/.test(str)) d = new Date((parseInt(str, 10) - 25569) * 86400_000);
+    else d = new Date(str);
+  }
+  if (isNaN(d.getTime()) || d.getFullYear() < 2000 || d.getFullYear() > 2100) {
+    throw new Error(`التاريخ غير صالح: "${raw}"`);
+  }
   return d;
 }
 
@@ -57,6 +71,9 @@ export async function importRevenues(formData: FormData) {
   if (!file || !(file instanceof File)) {
     throw new Error("لم يتم اختيار ملف");
   }
+  if (file.size > MAX_IMPORT_BYTES) {
+    throw new Error("حجم الملف يتجاوز الحد المسموح به (5 ميجابايت)");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const workbook = new ExcelJS.Workbook();
@@ -65,6 +82,9 @@ export async function importRevenues(formData: FormData) {
 
   const sheet = workbook.worksheets[0];
   if (!sheet) throw new Error("الملف لا يحتوي على بيانات");
+  if (sheet.rowCount > MAX_IMPORT_ROWS) {
+    throw new Error("عدد الصفوف يتجاوز الحد المسموح به (10000 صف)");
+  }
 
   const errors: string[] = [];
   const rows: {
@@ -74,7 +94,6 @@ export async function importRevenues(formData: FormData) {
     amount: number;
     description: string | null;
     recordDate: Date;
-    source: string | null;
   }[] = [];
 
   for (let i = 2; i <= sheet.rowCount; i++) {
@@ -92,12 +111,9 @@ export async function importRevenues(formData: FormData) {
       const description = row.getCell(5).value
         ? String(row.getCell(5).value).trim()
         : null;
-      const source = row.getCell(6).value
-        ? String(row.getCell(6).value).trim()
-        : null;
       const recordDate = parseDate(row.getCell(7).value);
 
-      rows.push({ year, month, category, amount, description, recordDate, source });
+      rows.push({ year, month, category, amount, description, recordDate });
     } catch (err) {
       errors.push(`صف ${i}: ${err instanceof Error ? err.message : "بيانات غير صالحة"}`);
     }
@@ -117,7 +133,7 @@ export async function importRevenues(formData: FormData) {
           amount: r.amount,
           description: r.description,
           recordDate: r.recordDate,
-          source: r.source ?? "Import",
+          source: "Manual",
         },
       })
     )
@@ -134,6 +150,9 @@ export async function importExpenses(formData: FormData) {
   if (!file || !(file instanceof File)) {
     throw new Error("لم يتم اختيار ملف");
   }
+  if (file.size > MAX_IMPORT_BYTES) {
+    throw new Error("حجم الملف يتجاوز الحد المسموح به (5 ميجابايت)");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const workbook = new ExcelJS.Workbook();
@@ -142,6 +161,9 @@ export async function importExpenses(formData: FormData) {
 
   const sheet = workbook.worksheets[0];
   if (!sheet) throw new Error("الملف لا يحتوي على بيانات");
+  if (sheet.rowCount > MAX_IMPORT_ROWS) {
+    throw new Error("عدد الصفوف يتجاوز الحد المسموح به (10000 صف)");
+  }
 
   const errors: string[] = [];
   const rows: {
@@ -212,6 +234,9 @@ export async function previewRevenueImport(formData: FormData) {
   if (!file || !(file instanceof File)) {
     throw new Error("لم يتم اختيار ملف");
   }
+  if (file.size > MAX_IMPORT_BYTES) {
+    throw new Error("حجم الملف يتجاوز الحد المسموح به (5 ميجابايت)");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const workbook = new ExcelJS.Workbook();
@@ -220,6 +245,9 @@ export async function previewRevenueImport(formData: FormData) {
 
   const sheet = workbook.worksheets[0];
   if (!sheet) throw new Error("الملف لا يحتوي على بيانات");
+  if (sheet.rowCount > MAX_IMPORT_ROWS) {
+    throw new Error("عدد الصفوف يتجاوز الحد المسموح به (10000 صف)");
+  }
 
   const headers: string[] = [];
   const headerRow = sheet.getRow(1);
@@ -248,6 +276,9 @@ export async function previewExpenseImport(formData: FormData) {
   if (!file || !(file instanceof File)) {
     throw new Error("لم يتم اختيار ملف");
   }
+  if (file.size > MAX_IMPORT_BYTES) {
+    throw new Error("حجم الملف يتجاوز الحد المسموح به (5 ميجابايت)");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const workbook = new ExcelJS.Workbook();
@@ -256,6 +287,9 @@ export async function previewExpenseImport(formData: FormData) {
 
   const sheet = workbook.worksheets[0];
   if (!sheet) throw new Error("الملف لا يحتوي على بيانات");
+  if (sheet.rowCount > MAX_IMPORT_ROWS) {
+    throw new Error("عدد الصفوف يتجاوز الحد المسموح به (10000 صف)");
+  }
 
   const headers: string[] = [];
   const headerRow = sheet.getRow(1);

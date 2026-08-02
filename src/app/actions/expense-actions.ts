@@ -2,7 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { requireAuth, requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
+import { requireAdmin, assertMonthYear, assertValidFinancialDate, validatePositiveNumber, validateRequiredString } from "./validation";
+import { roundMoney } from "@/lib/utils";
+import { FIXED_EXPENSE_CATEGORIES } from "@/lib/fixed-expenses";
 
 interface CreateExpenseInput {
   year: number;
@@ -15,18 +17,60 @@ interface CreateExpenseInput {
   referenceNumber?: string;
 }
 
+export async function createFixedExpenses(input: {
+  expenseDate: Date;
+  amounts: Record<string, number>;
+}) {
+  const actor = await requireAdmin();
+
+  const date = new Date(input.expenseDate);
+  assertValidFinancialDate(date, "التاريخ");
+
+  const rows = FIXED_EXPENSE_CATEGORIES.map((category, i) => ({
+    category,
+    amount: input.amounts[i],
+  })).filter((r) => r.amount > 0);
+
+  if (rows.length === 0) {
+    throw new Error("أدخل مبلغاً واحداً على الأقل");
+  }
+
+  for (const r of rows) validatePositiveNumber(r.amount, r.category);
+
+  const created = await prisma.$transaction(
+    rows.map((r) =>
+      prisma.expense.create({
+        data: {
+          year: date.getFullYear(),
+          month: date.getMonth() + 1,
+          category: r.category,
+          amount: roundMoney(r.amount),
+          expenseDate: date,
+          source: "Fixed",
+          description: "مصروف ثابت شهري",
+        },
+      })
+    )
+  );
+
+  await logEvent("fixed_expenses_created", { count: created.length, actor });
+  return created.map((e) => ({ ...e, expenseDate: e.expenseDate.toISOString() }));
+}
+
 export async function createExpense(input: CreateExpenseInput) {
   await requireAdmin();
 
   validatePositiveNumber(input.amount, "المبلغ");
   validateRequiredString(input.category, "الفئة");
+  assertMonthYear(input.month, input.year);
+  assertValidFinancialDate(new Date(input.expenseDate), "التاريخ");
 
   const expense = await prisma.expense.create({
     data: {
       year: input.year,
       month: input.month,
       category: input.category,
-      amount: input.amount,
+      amount: roundMoney(input.amount),
       description: input.description ?? null,
       expenseDate: new Date(input.expenseDate),
       vendor: input.vendor ?? null,
@@ -44,13 +88,21 @@ export async function updateExpense(
 ) {
   await requireAdmin();
 
+  if (input.month !== undefined || input.year !== undefined) {
+    assertMonthYear(input.month ?? 1, input.year ?? 2000);
+  }
+  if (input.expenseDate !== undefined) {
+    assertValidFinancialDate(new Date(input.expenseDate), "التاريخ");
+  }
+  if (input.amount !== undefined) validatePositiveNumber(input.amount, "المبلغ");
+
   const expense = await prisma.expense.update({
     where: { id },
     data: {
       ...(input.year !== undefined && { year: input.year }),
       ...(input.month !== undefined && { month: input.month }),
       ...(input.category !== undefined && { category: input.category }),
-      ...(input.amount !== undefined && { amount: input.amount }),
+      ...(input.amount !== undefined && { amount: roundMoney(input.amount) }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.expenseDate !== undefined && { expenseDate: new Date(input.expenseDate) }),
       ...(input.vendor !== undefined && { vendor: input.vendor }),
@@ -64,8 +116,11 @@ export async function updateExpense(
 export async function deleteExpense(id: number) {
   const actor = await requireAdmin();
 
-  await prisma.expense.delete({ where: { id } });
-  await logEvent("expense_deleted", { expenseId: id, actor });
+  await prisma.expense.update({
+    where: { id },
+    data: { isActive: false },
+  });
+  await logEvent("expense_soft_deleted", { expenseId: id, actor });
 }
 
 export async function getExpenses(filters?: {
@@ -73,10 +128,11 @@ export async function getExpenses(filters?: {
   month?: number;
   category?: string;
 }) {
-  await requireAuth();
+  await requireAdmin();
 
   return prisma.expense.findMany({
     where: {
+      isActive: true,
       ...(filters?.year !== undefined && { year: filters.year }),
       ...(filters?.month !== undefined && { month: filters.month }),
       ...(filters?.category && { category: filters.category }),
@@ -86,11 +142,11 @@ export async function getExpenses(filters?: {
 }
 
 export async function getExpenseSummary(year: number) {
-  await requireAuth();
+  await requireAdmin();
 
   return prisma.expense.groupBy({
     by: ["month", "category"],
-    where: { year },
+    where: { year, isActive: true },
     _sum: { amount: true },
     orderBy: { month: "asc" },
   });

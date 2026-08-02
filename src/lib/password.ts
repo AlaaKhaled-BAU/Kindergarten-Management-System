@@ -1,15 +1,22 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { scryptSync, timingSafeEqual } from "node:crypto";
 
 const KEY_LEN = 64;
 
-/** Formats as "salt:hash", both hex. Stored verbatim in Setting.value. */
+// ponytail: plain-text storage, per engineer decision. "plain:" prefix
+// distinguishes new rows from legacy scrypt hashes so verifyPassword can
+// keep old rows working; once a password is changed it becomes plain.
 export function hashPassword(password: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(password, salt, KEY_LEN);
-  return `${salt.toString("hex")}:${hash.toString("hex")}`;
+  return `plain:${password}`;
 }
 
 export function verifyPassword(password: string, stored: string): boolean {
+  if (stored.startsWith("plain:")) {
+    const expected = Buffer.from(stored.slice("plain:".length));
+    const actual = Buffer.from(password);
+    return expected.length === actual.length && timingSafeEqual(actual, expected);
+  }
+
+  // Legacy scrypt hash ("salt:hash", hex) from before the plain-text switch.
   const [saltHex, hashHex] = stored.split(":");
   if (!saltHex || !hashHex) return false;
 

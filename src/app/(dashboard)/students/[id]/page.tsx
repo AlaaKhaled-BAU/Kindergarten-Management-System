@@ -1,10 +1,11 @@
-import { getStudentById, getStudentLedger } from "@/app/actions/student-actions";
+import { getStudentById, getStudentLedger, getStudentBalance } from "@/app/actions/student-actions";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentStatusButton } from "@/components/students/student-status-button";
 import { StudentEditButton } from "@/components/students/student-edit-button";
 import { RefundButton } from "@/components/students/refund-button";
+import { WithdrawButton } from "@/components/students/withdraw-button";
 import { getAuthRole } from "@/lib/auth";
 import { gradeLabel } from "@/lib/grades";
 import { format } from "date-fns";
@@ -24,9 +25,10 @@ export default async function StudentProfilePage({
   const student = await getStudentById(studentId);
   if (!student) notFound();
 
-  const [ledger, role] = await Promise.all([
+  const [ledger, role, balance] = await Promise.all([
     getStudentLedger(studentId),
     getAuthRole(),
+    getStudentBalance(studentId),
   ]);
 
 
@@ -42,7 +44,7 @@ export default async function StudentProfilePage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <StudentEditButton
+          {role === "admin" && <StudentEditButton
             student={{
               id: student.id,
               firstName: student.firstName,
@@ -58,8 +60,13 @@ export default async function StudentProfilePage({
               medicalNotes: student.medicalNotes,
               notes: student.notes,
             }}
-          />
-          <StudentStatusButton studentId={student.id} isActive={student.isActive} />
+          />}
+          {role === "admin" && student.isActive && (
+            <WithdrawButton studentId={student.id} currentBalance={balance} />
+          )}
+          {role === "admin" && !student.isActive && (
+            <StudentStatusButton studentId={student.id} isActive={student.isActive} />
+          )}
         </div>
       </div>
 

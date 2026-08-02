@@ -60,7 +60,7 @@ function rightAlignColumns(sheet: ExcelJS.Worksheet) {
  * formula-injection risk on any free-text field that reaches an export.
  */
 function sanitizeCell(value: string): string {
-  return /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 }
 
 function styleHeader(sheet: ExcelJS.Worksheet, colCount: number) {

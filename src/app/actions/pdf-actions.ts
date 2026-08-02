@@ -12,6 +12,9 @@ export interface ReceiptPdfData {
   paymentMethod: string;
   paymentReason?: string;
   kindergartenName: string;
+  isCanceled: boolean;
+  cancelDate?: string;
+  cancelReason?: string;
 }
 
 export interface LedgerTransactionEntry {
@@ -68,6 +71,9 @@ export async function generateReceiptPdf(
     paymentMethod: receipt.payment.paymentMethod,
     paymentReason: receipt.payment.notes ?? undefined,
     kindergartenName: receipt.kindergartenName,
+    isCanceled: receipt.isCanceled,
+    cancelDate: receipt.cancelDate ? receipt.cancelDate.toISOString().split("T")[0] : undefined,
+    cancelReason: receipt.cancelReason ?? undefined,
   };
 }
 

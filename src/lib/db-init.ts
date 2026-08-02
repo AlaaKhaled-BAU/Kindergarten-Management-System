@@ -3,21 +3,21 @@ import { prisma } from "./prisma";
 
 export const DEFAULT_FEES = [
   {
-    name: "رسوم صف البستان",
+    name: "رسوم Pre",
     amount: 350,
     feeType: "Monthly",
     applicableGrade: "Pre",
     academicYear: "2025-2026",
   },
   {
-    name: "رسوم صف الروضة الأولى",
+    name: "رسوم KG1",
     amount: 400,
     feeType: "Monthly",
     applicableGrade: "KG1",
     academicYear: "2025-2026",
   },
   {
-    name: "رسوم صف الروضة الثانية",
+    name: "رسوم KG2",
     amount: 500,
     feeType: "Monthly",
     applicableGrade: "KG2",

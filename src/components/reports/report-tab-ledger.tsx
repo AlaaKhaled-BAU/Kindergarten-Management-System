@@ -26,16 +26,19 @@ export function ReportTabLedger() {
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getAllStudents({ isActive: true }).then((list) => {
-      const options = list.map((s) => ({
-        id: s.id,
-        label: `${s.firstName} ${s.lastName}`,
-        grade: s.grade,
-      }));
-      setStudents(options);
-    });
+    getAllStudents({ isActive: true })
+      .then((list) => {
+        const options = list.map((s) => ({
+          id: s.id,
+          label: `${s.firstName} ${s.lastName}`,
+          grade: s.grade,
+        }));
+        setStudents(options);
+      })
+      .catch(() => setError("حدث خطأ في تحميل البيانات"));
   }, []);
 
   const filtered = useMemo(() => {
@@ -72,7 +75,7 @@ export function ReportTabLedger() {
           <Select value={gradeFilter} onValueChange={(v) => setGradeFilter(v ?? "all")}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="الصف">
-                {(value: string) => (value === "all" ? "الكل" : gradeLabel(value))}
+                {(value: string) => (!value ? "الصف" : value === "all" ? "الكل" : gradeLabel(value))}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -83,6 +86,8 @@ export function ReportTabLedger() {
             </SelectContent>
           </Select>
         </div>
+
+        {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
         <div className="max-h-48 overflow-y-auto rounded-lg border">
           {filtered.length === 0 ? (

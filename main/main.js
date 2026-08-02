@@ -141,6 +141,7 @@ function startServer() {
         ...process.env,
         ELECTRON_RUN_AS_NODE: "1",
         PORT: String(PORT),
+        HOSTNAME: "127.0.0.1",
         NODE_ENV: "production",
         // Override whatever relative DATABASE_URL shipped in the bundled
         // .env -- the db must live somewhere guaranteed writable, not

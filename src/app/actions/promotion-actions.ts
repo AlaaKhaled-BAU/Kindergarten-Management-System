@@ -70,7 +70,10 @@ export async function promoteStudents(
           where: { studentId: oldStudent.id },
           _sum: { amount: true },
         });
-        const oldBalance = roundMoney(balanceResult._sum.amount ?? 0);
+        // Transfer the EXACT stored sum on both sides so the legacy student's
+        // ledger zeroes out exactly (roundMoney for display/reporting only).
+        const transferAmount = balanceResult._sum.amount ?? 0;
+        const oldBalance = roundMoney(transferAmount);
 
         const newStudent = await tx.student.create({
           data: {
@@ -132,12 +135,12 @@ export async function promoteStudents(
           true
         );
 
-        if (oldBalance !== 0) {
+        if (transferAmount !== 0) {
           await tx.transaction.create({
             data: {
               studentId: oldStudent.id,
               transactionType: "BalanceTransferOut",
-              amount: -oldBalance,
+              amount: -transferAmount,
               transactionDate: new Date(),
               description: `ترقية إلى ${gradeLabel(newGrade)} - ${newAcademicYear}`,
               referenceId: `Promotion:To:${newStudent.id}`,
@@ -149,7 +152,7 @@ export async function promoteStudents(
             data: {
               studentId: newStudent.id,
               transactionType: "BalanceTransferIn",
-              amount: oldBalance,
+              amount: transferAmount,
               transactionDate: new Date(),
               description: `رصيد مرحل من ${gradeLabel(oldStudent.grade)} - ${oldStudent.academicYear}`,
               referenceId: `Promotion:From:${oldStudent.id}`,

@@ -10,8 +10,14 @@ async function sign(role: string): Promise<string> {
   // cookieSecret is generated once (random, DB-stored) the first time
   // settings.ts initializes -- always present by the time any cookie needs
   // signing or verifying. No password-derived or hardcoded fallback key.
+  //
+  // The role's password hash is mixed into the key so changing the password
+  // (admin or teacher) instantly invalidates every existing session of that
+  // role -- otherwise a terminated employee keeps a valid cookie for up to
+  // the 7-day maxAge.
   const key = await getSetting("cookieSecret");
-  return createHmac("sha256", key!).update(role).digest("hex");
+  const pwdHash = await getSetting(role === "admin" ? "adminPasswordHash" : "teacherPasswordHash");
+  return createHmac("sha256", `${key}:${pwdHash ?? ""}`).update(role).digest("hex");
 }
 
 async function signRoleCookie(role: AuthRole): Promise<string> {

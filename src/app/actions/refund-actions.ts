@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
+import { roundMoney } from "@/lib/utils";
 
 interface ProcessRefundInput {
   studentId: number;
@@ -28,10 +29,22 @@ export async function processRefund(input: ProcessRefundInput) {
   return prisma.$transaction(async (tx) => {
     await tx.student.findUniqueOrThrow({ where: { id: input.studentId } });
 
+    const amount = roundMoney(input.amount);
+
+    const paidRows = await tx.transaction.groupBy({
+      by: ["studentId"],
+      where: { studentId: input.studentId, transactionType: "Payment" },
+      _sum: { amount: true },
+    });
+    const totalPaid = Math.abs(paidRows[0]?._sum.amount ?? 0);
+    if (amount > totalPaid + 0.001) {
+      throw new Error("لا يمكن استرداد مبلغ أكبر من إجمالي المدفوعات");
+    }
+
     const refund = await tx.refund.create({
       data: {
         studentId: input.studentId,
-        amount: input.amount,
+        amount,
         refundDate: new Date(),
         reason: input.reason,
         notes: input.notes ?? null,
@@ -43,11 +56,24 @@ export async function processRefund(input: ProcessRefundInput) {
       data: {
         studentId: input.studentId,
         transactionType: "Adjustment",
-        amount: input.amount,
+        amount,
         transactionDate: new Date(),
         description: `استرداد نقدي: ${input.reason}`,
         referenceId: `Refund:${refund.id}`,
         createdBy: actor,
+      },
+    });
+
+    const refundDate = new Date();
+    await tx.revenue.create({
+      data: {
+        year: refundDate.getFullYear(),
+        month: refundDate.getMonth() + 1,
+        category: "استرداد",
+        amount: -amount,
+        description: `استرداد نقدي: ${input.reason}`,
+        recordDate: new Date(),
+        source: "Refund",
       },
     });
 

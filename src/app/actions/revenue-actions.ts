@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { requireAuth, requireAdmin, validatePositiveNumber, validateRequiredString } from "./validation";
+import { requireAdmin, assertMonthYear, assertValidFinancialDate, validatePositiveNumber, validateRequiredString } from "./validation";
 import { roundMoney } from "@/lib/utils";
 import { getCurrentAcademicYear } from "./academic-year-actions";
 
@@ -36,13 +36,15 @@ export async function createRevenue(input: CreateRevenueInput) {
 
   validatePositiveNumber(input.amount, "المبلغ");
   validateRequiredString(input.category, "الفئة");
+  assertMonthYear(input.month, input.year);
+  assertValidFinancialDate(new Date(input.recordDate), "التاريخ");
 
   const revenue = await prisma.revenue.create({
     data: {
       year: input.year,
       month: input.month,
       category: input.category,
-      amount: input.amount,
+      amount: roundMoney(input.amount),
       description: input.description ?? null,
       recordDate: new Date(input.recordDate),
       source: "Manual",
@@ -58,6 +60,14 @@ export async function updateRevenue(
 ) {
   await requireAdmin();
 
+  if (input.month !== undefined || input.year !== undefined) {
+    assertMonthYear(input.month ?? 1, input.year ?? 2000);
+  }
+  if (input.recordDate !== undefined) {
+    assertValidFinancialDate(new Date(input.recordDate), "التاريخ");
+  }
+  if (input.amount !== undefined) validatePositiveNumber(input.amount, "المبلغ");
+
   const existing = await prisma.revenue.findUniqueOrThrow({ where: { id } });
   assertNotDerived(existing.source, "تعديل");
 
@@ -67,7 +77,7 @@ export async function updateRevenue(
       ...(input.year !== undefined && { year: input.year }),
       ...(input.month !== undefined && { month: input.month }),
       ...(input.category !== undefined && { category: input.category }),
-      ...(input.amount !== undefined && { amount: input.amount }),
+      ...(input.amount !== undefined && { amount: roundMoney(input.amount) }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.recordDate !== undefined && { recordDate: new Date(input.recordDate) }),
     },
@@ -82,8 +92,11 @@ export async function deleteRevenue(id: number) {
   const existing = await prisma.revenue.findUniqueOrThrow({ where: { id } });
   assertNotDerived(existing.source, "حذف");
 
-  await prisma.revenue.delete({ where: { id } });
-  await logEvent("revenue_deleted", { revenueId: id, actor });
+  await prisma.revenue.update({
+    where: { id },
+    data: { isActive: false },
+  });
+  await logEvent("revenue_soft_deleted", { revenueId: id, actor });
 }
 
 export async function getRevenues(filters?: {
@@ -91,10 +104,11 @@ export async function getRevenues(filters?: {
   month?: number;
   category?: string;
 }) {
-  await requireAuth();
+  await requireAdmin();
 
   return prisma.revenue.findMany({
     where: {
+      isActive: true,
       ...(filters?.year !== undefined && { year: filters.year }),
       ...(filters?.month !== undefined && { month: filters.month }),
       ...(filters?.category && { category: filters.category }),
@@ -104,11 +118,11 @@ export async function getRevenues(filters?: {
 }
 
 export async function getRevenueSummary(year: number) {
-  await requireAuth();
+  await requireAdmin();
 
   return prisma.revenue.groupBy({
     by: ["month", "category"],
-    where: { year },
+    where: { year, isActive: true },
     _sum: { amount: true },
     orderBy: { month: "asc" },
   });
@@ -159,6 +173,7 @@ export async function getDashboardStats() {
     prisma.revenue.aggregate({
       _sum: { amount: true },
       where: {
+        isActive: true,
         year: currentYear,
         month: currentMonth,
         source: { in: ["Payment", "Cancellation"] },
@@ -183,6 +198,7 @@ export async function getDashboardStats() {
     prisma.expense.aggregate({
       _sum: { amount: true },
       where: {
+        isActive: true,
         year: currentYear,
         month: currentMonth,
       },

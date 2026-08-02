@@ -3,7 +3,8 @@
 import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createExpense, updateExpense, deleteExpense } from "@/app/actions/expense-actions";
+import { createExpense, updateExpense, deleteExpense, createFixedExpenses } from "@/app/actions/expense-actions";
+import { FIXED_EXPENSE_CATEGORIES } from "@/lib/fixed-expenses";
 import { exportExpenses } from "@/app/actions/export-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Repeat } from "lucide-react";
 import { format } from "date-fns";
 import { ImportDialog } from "@/components/financial/import-dialog";
 import { triggerDownload } from "@/lib/download-utils";
@@ -46,6 +47,32 @@ export function ExpensesPageClient({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [fixedOpen, setFixedOpen] = useState(false);
+  const [fixedPending, setFixedPending] = useState(false);
+  const [fixedError, setFixedError] = useState<string | null>(null);
+
+  async function handleFixedSubmit(formData: FormData) {
+    setFixedError(null);
+    setFixedPending(true);
+    try {
+      const amounts: Record<string, number> = {};
+      FIXED_EXPENSE_CATEGORIES.forEach((_, i) => {
+        const v = parseFloat(formData.get(`amount-${i}`) as string);
+        if (!isNaN(v) && v > 0) amounts[i] = v;
+      });
+      const created = await createFixedExpenses({
+        expenseDate: new Date(formData.get("fixedDate") as string),
+        amounts,
+      });
+      setExpenses((prev) => [...created, ...prev]);
+      setFixedOpen(false);
+      router.refresh();
+    } catch (err) {
+      setFixedError(errorMessage(err));
+    } finally {
+      setFixedPending(false);
+    }
+  }
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -116,6 +143,60 @@ export function ExpensesPageClient({
             تصدير إلى Excel
           </Button>
           <ImportDialog type="expense" onSuccess={() => router.refresh()} />
+          <Dialog
+            open={fixedOpen}
+            onOpenChange={(v) => {
+              setFixedOpen(v);
+              if (!v) setFixedError(null);
+            }}
+          >
+            <DialogTrigger
+              render={
+                <Button variant="outline" onClick={() => setFixedOpen(true)}>
+                  <Repeat className="me-2 size-4" />
+                  المصاريف الثابتة
+                </Button>
+              }
+            />
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>المصاريف الثابتة</DialogTitle>
+              </DialogHeader>
+              <form action={handleFixedSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fixedDate">التاريخ *</Label>
+                  <Input
+                    id="fixedDate"
+                    name="fixedDate"
+                    type="date"
+                    required
+                    defaultValue={format(new Date(), "yyyy-MM-dd")}
+                  />
+                </div>
+                {FIXED_EXPENSE_CATEGORIES.map((cat, i) => (
+                  <div key={cat} className="space-y-2">
+                    <Label htmlFor={`amount-${i}`}>{cat}</Label>
+                    <Input
+                      id={`amount-${i}`}
+                      name={`amount-${i}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
+                ))}
+                {fixedError && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {fixedError}
+                  </p>
+                )}
+                <Button type="submit" className="w-full" disabled={fixedPending}>
+                  {fixedPending ? "جارٍ الحفظ..." : "حفظ المصاريف الثابتة"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
           <Dialog
           open={open}
           onOpenChange={(v) => {

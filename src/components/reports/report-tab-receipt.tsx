@@ -16,18 +16,21 @@ export function ReportTabReceipt() {
   const [receipts, setReceipts] = useState<ReceiptOption[]>([]);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getReceipts().then((list) => {
-      const options = list
-        .filter((r) => !r.isCanceled)
-        .sort((a, b) => b.receiptNumber - a.receiptNumber)
-        .map((r) => ({
-          id: r.id,
-          label: `#${String(r.receiptNumber).padStart(5, "0")} — ${r.studentName}`,
-        }));
-      setReceipts(options);
-    });
+    getReceipts()
+      .then((list) => {
+        const options = list
+          .filter((r) => !r.isCanceled)
+          .sort((a, b) => b.receiptNumber - a.receiptNumber)
+          .map((r) => ({
+            id: r.id,
+            label: `#${String(r.receiptNumber).padStart(5, "0")} — ${r.studentName}`,
+          }));
+        setReceipts(options);
+      })
+      .catch(() => setError("حدث خطأ في تحميل البيانات"));
   }, []);
 
   const filtered = useMemo(() => {
@@ -54,6 +57,8 @@ export function ReportTabReceipt() {
             className="pe-9"
           />
         </div>
+
+        {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
         <div className="max-h-48 overflow-y-auto rounded-lg border">
           {filtered.length === 0 ? (
