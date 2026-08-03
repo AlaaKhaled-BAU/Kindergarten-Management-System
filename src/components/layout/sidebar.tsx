@@ -24,8 +24,10 @@ import { TeacherPasswordButton } from "@/components/layout/teacher-password-butt
 import { useState } from "react";
 
 // Revenues/Expenses are school bookkeeping, not day-to-day classroom
-// operations -- admin-only, same as Fees and Reports. Students/Payments
+// operations -- admin-only, same as Fees and Settings. Students/Payments
 // stay "all" since a teacher issuing a receipt is normal daily work.
+// Reports is "all" too, but the page renders only the student-ledger
+// (كشف حساب) feature for teachers; the rest stays admin-only.
 const navigation = [
   { name: "لوحة القيادة", href: "/", icon: LayoutDashboard, role: "admin" },
   { name: "الطلاب", href: "/students", icon: Users, role: "all" },
@@ -33,7 +35,7 @@ const navigation = [
   { name: "الإيرادات", href: "/revenues", icon: TrendingUp, role: "admin" },
   { name: "المصروفات", href: "/expenses", icon: Receipt, role: "admin" },
   { name: "الرسوم الدراسية", href: "/fees", icon: Wallet, role: "admin" },
-  { name: "التقارير", href: "/reports", icon: FileText, role: "admin" },
+  { name: "التقارير", href: "/reports", icon: FileText, role: "all" },
   { name: "الإعدادات", href: "/settings", icon: Settings, role: "admin" },
 ];
 

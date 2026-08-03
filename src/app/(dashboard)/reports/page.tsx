@@ -3,10 +3,22 @@ import { ReportMonthlySummary } from "@/components/reports/report-monthly-summar
 import { ReportTabReceipt } from "@/components/reports/report-tab-receipt";
 import { ReportTabLedger } from "@/components/reports/report-tab-ledger";
 import { ReportTabMonthly } from "@/components/reports/report-tab-monthly";
+import { getAuthRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default function ReportsPage() {
+export default async function ReportsPage() {
+  const role = await getAuthRole();
+
+  if (role !== "admin") {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">كشف حساب طالب</h1>
+        <ReportTabLedger />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">التقارير</h1>

@@ -1,6 +1,8 @@
 import { getStudentById, getStudentLedger, getStudentBalance } from "@/app/actions/student-actions";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Printer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentStatusButton } from "@/components/students/student-status-button";
 import { StudentEditButton } from "@/components/students/student-edit-button";
@@ -157,7 +159,16 @@ export default async function StudentProfilePage({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">كشف الحساب</CardTitle>
-              {role === "admin" && <RefundButton studentId={student.id} />}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  render={<a href={`/print/ledger/${student.id}`} target="_blank" rel="noopener noreferrer" />}
+                >
+                  <Printer />
+                  طباعة كشف الحساب
+                </Button>
+                {role === "admin" && <RefundButton studentId={student.id} />}
+              </div>
             </CardHeader>
             <CardContent>
               {ledger.length === 0 ? (

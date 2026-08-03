@@ -7,8 +7,8 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const role = await getAuthRole();
-  if (role !== "admin") {
-    redirect(role ? "/students" : "/login");
+  if (!role) {
+    redirect("/login");
   }
   return <>{children}</>;
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/app/actions/validation";
+import { requireAdmin, requireAuth } from "@/app/actions/validation";
 import { roundMoney } from "@/lib/utils";
 
 export interface ReceiptPdfData {
@@ -80,7 +80,7 @@ export async function generateReceiptPdf(
 export async function generateLedgerPdf(
   studentId: number
 ): Promise<LedgerPdfData> {
-  await requireAdmin();
+  await requireAuth();
 
   const student = await prisma.student.findUniqueOrThrow({
     where: { id: studentId },
