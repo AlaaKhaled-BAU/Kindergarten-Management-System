@@ -2,7 +2,7 @@
 // printed on every receipt). No test framework in this repo yet — run directly:
 //   npx tsx scripts/verify-tafqit.ts
 import assert from "node:assert";
-import { numberToArabicWords, formatDinarAmount } from "../src/lib/tafqit";
+import { numberToArabicWords, formatDinarAmount, splitDinarFils } from "../src/lib/tafqit";
 
 const cases: [number, string][] = [
   [0, "صفر"],
@@ -30,4 +30,20 @@ assert.strictEqual(numberToArabicWords(-50), "سالب خمسون ديناراً
 assert.strictEqual(formatDinarAmount(500.05), "500 دينار و 50 فلس");
 assert.strictEqual(formatDinarAmount(500), "500 دينار");
 
-console.log(`OK: ${cases.length + 3} tafqit cases passed.`);
+const splitCases: [number, { dinars: number; fils: number }][] = [
+  [500.05, { dinars: 500, fils: 50 }],
+  [1.9995, { dinars: 2, fils: 0 }],
+  [0.025, { dinars: 0, fils: 25 }],
+  [100, { dinars: 100, fils: 0 }],
+];
+
+for (const [amount, expected] of splitCases) {
+  const actual = splitDinarFils(amount);
+  assert.deepStrictEqual(
+    actual,
+    expected,
+    `splitDinarFils(${amount}): got ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`
+  );
+}
+
+console.log(`OK: ${cases.length + 3 + splitCases.length} tafqit cases passed.`);
