@@ -194,8 +194,14 @@ export function PaymentsPageClient({
               <div className="space-y-2">
                 <Label htmlFor="studentId">الطالب *</Label>
                 <Select name="studentId" required value={payStudentId} onValueChange={(v) => { setPayStudentId(v ?? ""); setPaymentError(null); }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الطالب" />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="اختر الطالب">
+                      {(value: string) => {
+                        if (!value) return "اختر الطالب";
+                        const student = students.find((s) => s.id.toString() === value);
+                        return student ? `${student.firstName} ${student.lastName}` : value;
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {students.map((s) => (
