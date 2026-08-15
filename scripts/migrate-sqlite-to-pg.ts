@@ -121,6 +121,31 @@ async function main() {
 
   console.log("تم النقل بنجاح (معاملة واحدة)");
 
+  // convertRow passes `id` through as-is, so every insert above wrote an
+  // explicit id and Postgres autoincrement sequences were never advanced.
+  // Without this, the next auto-id insert collides with the highest existing
+  // id and fails with P2002 ("Unique constraint failed on ('id')") -- which
+  // took down student creation (and any Payment/Transaction insert) in prod
+  // for exactly this reason. Advance every serial sequence to its table's
+  // current max id.
+  const sequences = await prisma.$queryRawUnsafe<{ name: string }[]>(
+    `SELECT sequencename::text AS name FROM pg_sequences WHERE schemaname = 'public'`
+  );
+  for (const { name } of sequences) {
+    const table = name.replace(/_id_seq$/, "");
+    if (!/^[A-Za-z]+$/.test(table)) continue;
+    const rows = await prisma.$queryRawUnsafe<{ m: number | null }[]>(
+      `SELECT MAX(id)::int AS m FROM "public"."${table}"`
+    );
+    const maxId = Number(rows[0]?.m ?? 0);
+    await prisma.$executeRawUnsafe(
+      `SELECT setval('"public"."${name}"'::regclass, $1, $2)`,
+      Math.max(maxId, 1),
+      maxId > 0
+    );
+  }
+  console.log(`تمت مزامنة ${sequences.length} متسلسلات معرفات تلقائية`);
+
   const balances = await prisma.student.findMany({
     orderBy: { id: "asc" },
     include: { transactions: true },
