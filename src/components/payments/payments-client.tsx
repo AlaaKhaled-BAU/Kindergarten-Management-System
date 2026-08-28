@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { StudentSearchPicker } from "@/components/students/student-search-picker";
 import { XCircle, Search } from "lucide-react";
 import { format } from "date-fns";
 
@@ -46,6 +47,8 @@ interface Student {
   id: number;
   firstName: string;
   lastName: string;
+  grade: string;
+  academicYear: string;
 }
 
 export function PaymentsPageClient({
@@ -54,12 +57,14 @@ export function PaymentsPageClient({
   balances,
   canCancel,
   nextReceiptNumber,
+  currentAcademicYear,
 }: {
   receipts: Receipt[];
   students: Student[];
   balances: Record<string, number>;
   canCancel: boolean;
   nextReceiptNumber: number;
+  currentAcademicYear: string;
 }) {
   const router = useRouter();
   const [receipts, setReceipts] = useState(initialReceipts);
@@ -192,25 +197,20 @@ export function PaymentsPageClient({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="studentId">الطالب *</Label>
-                <Select name="studentId" required value={payStudentId} onValueChange={(v) => { setPayStudentId(v ?? ""); setPaymentError(null); }}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="اختر الطالب">
-                      {(value: string) => {
-                        if (!value) return "اختر الطالب";
-                        const student = students.find((s) => s.id.toString() === value);
-                        return student ? `${student.firstName} ${student.lastName}` : value;
-                      }}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((s) => (
-                      <SelectItem key={s.id} value={s.id.toString()}>
-                        {s.firstName} {s.lastName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>الطالب *</Label>
+                <StudentSearchPicker
+                  key={open ? "open" : "closed"}
+                  students={students}
+                  balances={balances}
+                  value={payStudentId}
+                  onChange={(v) => {
+                    setPayStudentId(v);
+                    setPaymentError(null);
+                  }}
+                  defaultYearFilter={currentAcademicYear}
+                  name="studentId"
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="amount">المبلغ *</Label>
