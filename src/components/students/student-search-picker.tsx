@@ -86,9 +86,10 @@ export function StudentSearchPicker({
     }
   }
 
-  function handleGradeChange(next: string) {
-    setGradeFilter(next);
-    clearIfNoLongerVisible(next, yearFilter, search);
+  function handleGradeChange(next: string | null) {
+    const v = next ?? "all";
+    setGradeFilter(v);
+    clearIfNoLongerVisible(v, yearFilter, search);
   }
 
   function handleYearChange(next: string | null) {
