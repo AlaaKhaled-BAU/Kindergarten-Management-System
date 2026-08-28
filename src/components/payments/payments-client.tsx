@@ -179,7 +179,7 @@ export function PaymentsPageClient({
             <DialogHeader>
               <DialogTitle>إصدار سند قبض</DialogTitle>
             </DialogHeader>
-            <form action={handlePayment} className="space-y-4">
+            <form action={handlePayment} className="flex min-h-0 flex-col gap-4">
               <div className="space-y-2">
                 <Label htmlFor="receiptNumber">رقم الوصل *</Label>
                 <Input
