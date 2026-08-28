@@ -18,6 +18,12 @@ function owingLabel(amount: number): string {
   return "";
 }
 
+function formatPrintDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  if (!year || !month || !day) return isoDate;
+  return `${day}/${month}/${year}`;
+}
+
 export default async function LedgerPrintPage({
   params,
 }: {
@@ -47,7 +53,7 @@ export default async function LedgerPrintPage({
         <p className="text-xs text-gray-600 mt-1">السنة الدراسية: {data.academicYear}</p>
       </div>
 
-      <div className="flex flex-row-reverse justify-between border-y border-black py-2 my-3">
+      <div className="flex justify-between gap-6 border-y border-black py-2 my-3">
         <div className="w-[48%] space-y-1">
           <InfoRow label="اسم الطالب" value={data.studentName} />
           <InfoRow label="الصف" value={gradeLabel(data.grade)} />
@@ -79,7 +85,7 @@ export default async function LedgerPrintPage({
             <tr key={t.id} className="border-b border-black">
               <Td>{i + 1}</Td>
               <Td>{t.credit > 0 ? formatDinarAmount(t.credit) : "—"}</Td>
-              <Td>{t.date}</Td>
+              <Td>{formatPrintDate(t.date)}</Td>
               <Td>{t.receiptNumber ?? "—"}</Td>
               <Td>{formatDinarAmount(Math.abs(t.balance)) + owingLabel(t.balance)}</Td>
               <Td last>{t.description?.slice(0, 40)}</Td>
@@ -95,7 +101,7 @@ export default async function LedgerPrintPage({
         </tbody>
       </table>
 
-      <div className="flex flex-row-reverse justify-between mt-16">
+      <div className="flex justify-between mt-16">
         <div className="w-2/5 text-center">
           <div className="border-t border-black pt-1">توقيع الإدارة</div>
         </div>
@@ -109,9 +115,9 @@ export default async function LedgerPrintPage({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-row-reverse">
-      <span className="font-bold min-w-20">{label}:</span>
-      <span>{value}</span>
+    <div className="flex items-baseline gap-2">
+      <span className="font-bold shrink-0">{label} :</span>
+      <span className="flex-1">{value}</span>
     </div>
   );
 }

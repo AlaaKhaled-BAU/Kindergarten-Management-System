@@ -70,9 +70,9 @@ export default async function MonthlyPrintPage({
         </tbody>
       </table>
 
-      <div className="flex flex-row-reverse border-y-2 border-black bg-gray-200 mt-2">
-        <div className="w-[54%] text-center py-2 font-bold">{formatDinarAmount(data.totalAmount)}</div>
+      <div className="flex border-y-2 border-black bg-gray-200 mt-2">
         <div className="w-[46%] text-center py-2 font-bold">المجموع</div>
+        <div className="w-[54%] text-center py-2 font-bold">{formatDinarAmount(data.totalAmount)}</div>
       </div>
     </div>
   );
