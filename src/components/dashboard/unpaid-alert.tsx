@@ -61,7 +61,7 @@ export function UnpaidAlert({ students }: { students: UnpaidStudent[] }) {
                   <tr key={s.id} className="border-b">
                     <td className="py-2">{s.name}</td>
                     <td className="py-2">{gradeLabel(s.grade)}</td>
-                    <td className="py-2">{s.balance.toFixed(2)} د.أ</td>
+                    <td className="py-2">{s.balance.toFixed(3)} د.أ</td>
                     <td className="py-2">
                       {s.lastPaymentDate
                         ? format(new Date(s.lastPaymentDate), "dd/MM/yyyy")

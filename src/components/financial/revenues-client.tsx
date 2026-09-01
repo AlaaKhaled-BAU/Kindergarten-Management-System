@@ -175,8 +175,8 @@ export function RevenuesPageClient({
                   id="amount"
                   name="amount"
                   type="number"
-                  min="0.01"
-                  step="0.01"
+                  min="0.001"
+                  step="0.001"
                   required
                   defaultValue={editing?.amount ?? ""}
                 />
@@ -247,7 +247,7 @@ export function RevenuesPageClient({
                   </td>
                   <td className="py-3 px-4">{r.source ?? "—"}</td>
                   <td className="py-3 px-4 text-end font-medium">
-                    {r.amount.toFixed(2)} د.أ
+                    {r.amount.toFixed(3)} د.أ
                   </td>
                   <td className="py-3 px-4 text-end">
                     {r.source === "Payment" || r.source === "Cancellation" ? (
@@ -305,7 +305,7 @@ export function RevenuesPageClient({
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 سيتم حذف إيراد <strong>{deleteTarget.category}</strong> بمبلغ{" "}
-                <strong>{deleteTarget.amount.toFixed(2)} د.أ</strong> نهائياً. هذا
+                <strong>{deleteTarget.amount.toFixed(3)} د.أ</strong> نهائياً. هذا
                 الإجراء لا يمكن التراجع عنه.
               </p>
               {deleteError && (

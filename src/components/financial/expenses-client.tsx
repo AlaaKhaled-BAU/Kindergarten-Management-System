@@ -181,8 +181,8 @@ export function ExpensesPageClient({
                       name={`amount-${i}`}
                       type="number"
                       min="0"
-                      step="0.01"
-                      placeholder="0.00"
+                      step="0.001"
+                      placeholder="0.000"
                     />
                   </div>
                 ))}
@@ -264,8 +264,8 @@ export function ExpensesPageClient({
                   id="amount"
                   name="amount"
                   type="number"
-                  min="0.01"
-                  step="0.01"
+                  min="0.001"
+                  step="0.001"
                   required
                   defaultValue={editing?.amount ?? ""}
                 />
@@ -352,7 +352,7 @@ export function ExpensesPageClient({
                   </td>
                   <td className="py-3 px-4">{e.vendor ?? "—"}</td>
                   <td className="py-3 px-4 text-end font-medium">
-                    {e.amount.toFixed(2)} د.أ
+                    {e.amount.toFixed(3)} د.أ
                   </td>
                   <td className="py-3 px-4 text-end">
                     <div className="flex gap-1 justify-end">
@@ -406,7 +406,7 @@ export function ExpensesPageClient({
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 سيتم حذف مصروف <strong>{deleteTarget.category}</strong> بمبلغ{" "}
-                <strong>{deleteTarget.amount.toFixed(2)} د.أ</strong> نهائياً. هذا
+                <strong>{deleteTarget.amount.toFixed(3)} د.أ</strong> نهائياً. هذا
                 الإجراء لا يمكن التراجع عنه.
               </p>
               {deleteError && (

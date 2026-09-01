@@ -26,21 +26,21 @@ export default async function DashboardPage() {
   const cards = [
     {
       title: "الدخل المتوقع",
-      value: `${stats.expectedIncome.toFixed(2)} د.أ`,
+      value: `${stats.expectedIncome.toFixed(3)} د.أ`,
       icon: TrendingUp,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
       title: "الدخل المحصل (الشهر الحالي)",
-      value: `${stats.receivedIncome.toFixed(2)} د.أ`,
+      value: `${stats.receivedIncome.toFixed(3)} د.أ`,
       icon: Banknote,
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
       title: stats.outstandingBalance < 0 ? "رصيد دائن (زيادة دفع)" : "الأرصدة المستحقة",
-      value: `${Math.abs(stats.outstandingBalance).toFixed(2)} د.أ`,
+      value: `${Math.abs(stats.outstandingBalance).toFixed(3)} د.أ`,
       icon: stats.outstandingBalance < 0 ? Banknote : AlertTriangle,
       color: stats.outstandingBalance < 0 ? "text-green-600" : "text-orange-600",
       bg: stats.outstandingBalance < 0 ? "bg-green-50" : "bg-orange-50",
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-bold text-destructive">
-            {stats.expensesThisMonth.toFixed(2)} د.أ
+            {stats.expensesThisMonth.toFixed(3)} د.أ
           </p>
         </CardContent>
       </Card>

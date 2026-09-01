@@ -221,7 +221,7 @@ export function StudentSearchPicker({
                         balance > 0 ? "text-amber-700" : "text-muted-foreground"
                       }`}
                     >
-                      {balance.toFixed(2)} د.أ
+                      {balance.toFixed(3)} د.أ
                     </span>
                   </button>
                 );

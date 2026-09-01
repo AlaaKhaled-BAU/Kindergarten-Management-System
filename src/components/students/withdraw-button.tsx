@@ -27,7 +27,7 @@ export function WithdrawButton({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(
-    currentBalance > 0 ? currentBalance.toFixed(2) : "0"
+    currentBalance > 0 ? currentBalance.toFixed(3) : "0"
   );
 
   async function handleConfirm() {
@@ -67,7 +67,7 @@ export function WithdrawButton({
               الرصيد الحالي:{" "}
               <strong>
                 {currentBalance > 0
-                  ? `${currentBalance.toFixed(2)} د.أ (عليه)`
+                  ? `${currentBalance.toFixed(3)} د.أ (عليه)`
                   : "رصيد دائن / صفر"}
               </strong>
             </p>
@@ -77,7 +77,7 @@ export function WithdrawButton({
                 id="remaining"
                 type="number"
                 min="0"
-                step="0.01"
+                step="0.001"
                 value={remaining}
                 onChange={(e) => setRemaining(e.target.value)}
                 disabled={pending}

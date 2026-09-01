@@ -218,8 +218,8 @@ export function PaymentsPageClient({
                   id="amount"
                   name="amount"
                   type="number"
-                  min="0.01"
-                  step="0.01"
+                  min="0.001"
+                  step="0.001"
                   required
                   value={payAmount}
                   onChange={(e) => { setPayAmount(e.target.value); setPaymentError(null); }}
@@ -229,7 +229,7 @@ export function PaymentsPageClient({
                 <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                   <p>
                     المبلغ أكبر من الرصيد المستحق (
-                    {(balances[payStudentId] ?? 0).toFixed(2)} د.أ) — سيترك رصيداً دائناً للطالب.
+                    {(balances[payStudentId] ?? 0).toFixed(3)} د.أ) — سيترك رصيداً دائناً للطالب.
                   </p>
                   <label className="flex items-center gap-2">
                     <input type="checkbox" name="confirmOverpay" required className="size-4" />
@@ -319,7 +319,7 @@ export function PaymentsPageClient({
                   <td className="py-3 px-4 font-medium">{r.receiptNumber}</td>
                   <td className="py-3 px-4">{r.studentName}</td>
                   <td className="py-3 px-4 text-end font-medium">
-                    {r.amount.toFixed(2)} د.أ
+                    {r.amount.toFixed(3)} د.أ
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
                     {format(new Date(r.issueDate), "dd/MM/yyyy")}
@@ -370,7 +370,7 @@ export function PaymentsPageClient({
               <p className="text-sm text-muted-foreground">
                 سيتم إلغاء الإيصال رقم{" "}
                 <strong>{selectedReceipt.receiptNumber}</strong> — المبلغ:{" "}
-                <strong>{selectedReceipt.amount.toFixed(2)} د.أ</strong> —
+                <strong>{selectedReceipt.amount.toFixed(3)} د.أ</strong> —
                 الطالب: <strong>{selectedReceipt.studentName}</strong>
               </p>
               <form action={handleCancel} className="space-y-4">

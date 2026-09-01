@@ -158,7 +158,7 @@ export function FeesClient({ fees: initialFees }: { fees: Fee[] }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="amount">المبلغ الشهري (د.أ)</Label>
-                <Input id="amount" name="amount" type="number" min="0.01" step="0.01" required />
+                <Input id="amount" name="amount" type="number" min="0.001" step="0.001" required />
               </div>
               {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
               <Button type="submit" className="w-full" disabled={pending}>
@@ -194,7 +194,7 @@ export function FeesClient({ fees: initialFees }: { fees: Fee[] }) {
                   <td className="py-3 px-4 font-medium">{f.name}</td>
                   <td className="py-3 px-4">{f.applicableGrade ? gradeLabel(f.applicableGrade) : "—"}</td>
                   <td className="py-3 px-4">{f.academicYear ?? "—"}</td>
-                  <td className="py-3 px-4 text-end font-medium">{f.amount.toFixed(2)} د.أ</td>
+                  <td className="py-3 px-4 text-end font-medium">{f.amount.toFixed(3)} د.أ</td>
                   <td className="py-3 px-4 text-center">
                     <Badge variant={f.isActive ? "default" : "secondary"}>
                       {f.isActive ? "نشط" : "غير نشط"}

@@ -498,7 +498,7 @@ export async function withdrawStudent(id: number, remainingAmount: number) {
 
     if (remainingAmount > currentBalance + 0.001) {
       throw new Error(
-        `المبلغ المتبقي لا يمكن أن يتجاوز الرصيد الحالي (${currentBalance.toFixed(2)} د.أ)`
+        `المبلغ المتبقي لا يمكن أن يتجاوز الرصيد الحالي (${currentBalance.toFixed(3)} د.أ)`
       );
     }
 
@@ -510,7 +510,7 @@ export async function withdrawStudent(id: number, remainingAmount: number) {
           transactionType: "Adjustment",
           amount: -writeOff,
           transactionDate: new Date(),
-          description: `تسوية انسحاب: إعفاء ${writeOff.toFixed(2)} د.أ`,
+          description: `تسوية انسحاب: إعفاء ${writeOff.toFixed(3)} د.أ`,
           referenceId: `Withdrawal:${id}`,
           createdBy: actor,
         },

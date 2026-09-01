@@ -217,7 +217,7 @@ export function StudentsTable({
                     name="busFees"
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="0.001"
                     defaultValue="0"
                   />
                 </div>
@@ -228,7 +228,7 @@ export function StudentsTable({
                     name="additionalFees"
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="0.001"
                     defaultValue="0"
                   />
                 </div>
@@ -239,7 +239,7 @@ export function StudentsTable({
                     name="discountValue"
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="0.001"
                     defaultValue="0"
                   />
                 </div>
@@ -347,7 +347,7 @@ export function StudentsTable({
                       s.balance > 0 ? "text-orange-600" : "text-green-600"
                     }`}
                   >
-                    {s.balance.toFixed(2)} د.أ
+                    {s.balance.toFixed(3)} د.أ
                   </td>
                   <td className="py-3 px-4 text-center">
                     <Badge variant={s.isActive ? "default" : "secondary"}>

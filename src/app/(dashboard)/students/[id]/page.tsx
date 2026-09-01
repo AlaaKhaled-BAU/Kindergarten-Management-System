@@ -92,15 +92,15 @@ export default async function StudentProfilePage({
                 value={student.dateOfBirth ? format(new Date(student.dateOfBirth), "dd/MM/yyyy") : "—"}
               />
               <InfoRow label="تاريخ التسجيل" value={format(new Date(student.enrollmentDate), "dd/MM/yyyy")} />
-              <InfoRow label="رسوم الباص" value={`${student.busFees} د.أ`} />
-              <InfoRow label="رسوم إضافية" value={`${student.additionalFees} د.أ`} />
+              <InfoRow label="رسوم الباص" value={`${Number(student.busFees).toFixed(3)} د.أ`} />
+              <InfoRow label="رسوم إضافية" value={`${Number(student.additionalFees).toFixed(3)} د.أ`} />
               <InfoRow
                 label="الخصم"
                 value={
                   student.discountValue > 0
                     ? student.discountIsPercent
                       ? `${student.discountValue}%`
-                      : `${student.discountValue} د.أ`
+                      : `${Number(student.discountValue).toFixed(3)} د.أ`
                     : "لا يوجد"
                 }
               />
@@ -199,17 +199,17 @@ export default async function StudentProfilePage({
                           </td>
                           <td className="py-2 px-3">{t.description}</td>
                           <td className="py-2 px-3 text-end">
-                            {t.amount > 0 ? `${t.amount.toFixed(2)} د.أ` : "—"}
+                            {t.amount > 0 ? `${t.amount.toFixed(3)} د.أ` : "—"}
                           </td>
                           <td className="py-2 px-3 text-end">
-                            {t.amount < 0 ? `${Math.abs(t.amount).toFixed(2)} د.أ` : "—"}
+                            {t.amount < 0 ? `${Math.abs(t.amount).toFixed(3)} د.أ` : "—"}
                           </td>
                           <td
                             className={`py-2 px-3 text-end font-medium ${
                               t.runningBalance > 0 ? "text-orange-600" : "text-green-600"
                             }`}
                           >
-                            {t.runningBalance.toFixed(2)} د.أ
+                            {t.runningBalance.toFixed(3)} د.أ
                           </td>
                         </tr>
                       ))}

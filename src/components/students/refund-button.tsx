@@ -61,8 +61,8 @@ export function RefundButton({ studentId }: { studentId: number }) {
               id="refund-amount"
               name="amount"
               type="number"
-              min="0.01"
-              step="0.01"
+              min="0.001"
+              step="0.001"
               required
             />
           </div>

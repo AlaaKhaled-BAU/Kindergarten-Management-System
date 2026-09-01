@@ -121,15 +121,15 @@ export function StudentEditButton({ student }: { student: StudentEditData }) {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="edit-busFees">رسوم الباص</Label>
-              <Input id="edit-busFees" name="busFees" type="number" min="0" step="0.01" defaultValue={student.busFees} />
+              <Input id="edit-busFees" name="busFees" type="number" min="0" step="0.001" defaultValue={student.busFees} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-additionalFees">رسوم إضافية</Label>
-              <Input id="edit-additionalFees" name="additionalFees" type="number" min="0" step="0.01" defaultValue={student.additionalFees} />
+              <Input id="edit-additionalFees" name="additionalFees" type="number" min="0" step="0.001" defaultValue={student.additionalFees} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-discountValue">الخصم</Label>
-              <Input id="edit-discountValue" name="discountValue" type="number" min="0" step="0.01" defaultValue={student.discountValue} />
+              <Input id="edit-discountValue" name="discountValue" type="number" min="0" step="0.001" defaultValue={student.discountValue} />
             </div>
           </div>
           <div className="flex items-center gap-2">

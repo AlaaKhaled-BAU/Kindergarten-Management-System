@@ -106,7 +106,7 @@ export async function exportRevenuesToExcel(data: RevenueRow[]): Promise<Buffer>
     });
   }
 
-  sheet.getColumn("amount").numFmt = "#,##0.00";
+  sheet.getColumn("amount").numFmt = "#,##0.000";
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
@@ -142,7 +142,7 @@ export async function exportExpensesToExcel(data: ExpenseRow[]): Promise<Buffer>
     });
   }
 
-  sheet.getColumn("amount").numFmt = "#,##0.00";
+  sheet.getColumn("amount").numFmt = "#,##0.000";
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
@@ -172,7 +172,7 @@ export async function exportStudentBalancesToExcel(data: StudentBalanceRow[]): P
     });
   }
 
-  sheet.getColumn("balance").numFmt = "#,##0.00";
+  sheet.getColumn("balance").numFmt = "#,##0.000";
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, requireAdmin } from "./validation";
 import { MONTH_INDEX } from "@/lib/excel-utils";
 import { logEvent } from "@/lib/logger";
+import { roundMoney } from "@/lib/utils";
 import ExcelJS from "exceljs";
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -113,7 +114,7 @@ export async function importRevenues(formData: FormData) {
         : null;
       const recordDate = parseDate(row.getCell(7).value);
 
-      rows.push({ year, month, category, amount, description, recordDate });
+      rows.push({ year, month, category, amount: roundMoney(amount), description, recordDate });
     } catch (err) {
       errors.push(`صف ${i}: ${err instanceof Error ? err.message : "بيانات غير صالحة"}`);
     }
@@ -130,7 +131,7 @@ export async function importRevenues(formData: FormData) {
           year: r.year,
           month: r.month,
           category: r.category,
-          amount: r.amount,
+          amount: roundMoney(r.amount),
           description: r.description,
           recordDate: r.recordDate,
           source: "Manual",
@@ -196,7 +197,7 @@ export async function importExpenses(formData: FormData) {
         : null;
       const expenseDate = parseDate(row.getCell(7).value);
 
-      rows.push({ year, month, category, amount, description, vendor, expenseDate });
+      rows.push({ year, month, category, amount: roundMoney(amount), description, vendor, expenseDate });
     } catch (err) {
       errors.push(`صف ${i}: ${err instanceof Error ? err.message : "بيانات غير صالحة"}`);
     }
@@ -213,7 +214,7 @@ export async function importExpenses(formData: FormData) {
           year: r.year,
           month: r.month,
           category: r.category,
-          amount: r.amount,
+          amount: roundMoney(r.amount),
           description: r.description,
           vendor: r.vendor,
           expenseDate: r.expenseDate,

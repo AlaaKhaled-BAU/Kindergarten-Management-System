@@ -57,7 +57,7 @@ export async function ReportMonthlySummary() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
-              {totalRevenue.toFixed(2)} د.أ
+              {totalRevenue.toFixed(3)} د.أ
             </p>
           </CardContent>
         </Card>
@@ -69,7 +69,7 @@ export async function ReportMonthlySummary() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-600">
-              {totalExpense.toFixed(2)} د.أ
+              {totalExpense.toFixed(3)} د.أ
             </p>
           </CardContent>
         </Card>
@@ -87,7 +87,7 @@ export async function ReportMonthlySummary() {
                   : "text-red-600"
               }`}
             >
-              {(totalRevenue - totalExpense).toFixed(2)} د.أ
+              {(totalRevenue - totalExpense).toFixed(3)} د.أ
             </p>
           </CardContent>
         </Card>
@@ -113,17 +113,17 @@ export async function ReportMonthlySummary() {
                   <tr key={row.month} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-4 font-medium">{row.name}</td>
                     <td className="py-3 px-4 text-end text-green-600">
-                      {row.revenue.toFixed(2)} د.أ
+                      {row.revenue.toFixed(3)} د.أ
                     </td>
                     <td className="py-3 px-4 text-end text-red-600">
-                      {row.expense.toFixed(2)} د.أ
+                      {row.expense.toFixed(3)} د.أ
                     </td>
                     <td
                       className={`py-3 px-4 text-end font-medium ${
                         row.net >= 0 ? "text-green-600" : "text-red-600"
                       }`}
                     >
-                      {row.net.toFixed(2)} د.أ
+                      {row.net.toFixed(3)} د.أ
                     </td>
                   </tr>
                 ))}
@@ -132,10 +132,10 @@ export async function ReportMonthlySummary() {
                 <tr className="bg-muted/30 font-bold">
                   <td className="py-3 px-4">المجموع</td>
                   <td className="py-3 px-4 text-end text-green-600">
-                    {totalRevenue.toFixed(2)} د.أ
+                    {totalRevenue.toFixed(3)} د.أ
                   </td>
                   <td className="py-3 px-4 text-end text-red-600">
-                    {totalExpense.toFixed(2)} د.أ
+                    {totalExpense.toFixed(3)} د.أ
                   </td>
                   <td
                     className={`py-3 px-4 text-end ${
@@ -144,7 +144,7 @@ export async function ReportMonthlySummary() {
                         : "text-red-600"
                     }`}
                   >
-                    {(totalRevenue - totalExpense).toFixed(2)} د.أ
+                    {(totalRevenue - totalExpense).toFixed(3)} د.أ
                   </td>
                 </tr>
               </tfoot>
