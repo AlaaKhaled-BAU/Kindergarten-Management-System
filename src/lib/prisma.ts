@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { cache } from "react";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -40,7 +41,32 @@ function createClient(): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
+function isOnCloudflare(): boolean {
+  try {
+    const env = getCloudflareContext().env as unknown as {
+      HYPERDRIVE?: { connectionString?: string };
+    };
+    return !!env?.HYPERDRIVE?.connectionString;
+  } catch {
+    return false;
+  }
+}
+
+// On Cloudflare Workers a database client (pg Pool sockets) is bound to the
+// isolate/request that created it and MUST NOT be reused by another request.
+// Reusing it hangs ~10s ("Cannot perform I/O on behalf of a different
+// request" / connectionTimeout) then 500s every route that queries the DB --
+// the exact /login crash in prod. Hyperdrive already pools connections at the
+// network level, so one client per request is fast. React cache() gives
+// exactly that: the same instance for every query inside one request, fresh
+// on the next request. (A brand-new client per *query* would break the
+// array-form prisma.$transaction([...]) in expense/import actions, which
+// builds its operations from separate proxy accesses that must share one
+// client -- hence per-request, not per-access.)
+const getRequestPrisma = cache((): PrismaClient => createClient());
+
 function getPrisma(): PrismaClient {
+  if (isOnCloudflare()) return getRequestPrisma();
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createClient();
   }

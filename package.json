@@ -11,6 +11,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "electron:dev": "electron .",
     "electron:build": "npm run build && electron-builder",
     "electron:build:win": "npm run build && electron-builder --win",
@@ -87,6 +88,7 @@
     "prisma": "^6.19.3",
     "tsx": "^4.21.0",
     "typescript": "^5",
+    "vitest": "^3.2.7",
     "wait-on": "^9",
     "wrangler": "^4"
   }

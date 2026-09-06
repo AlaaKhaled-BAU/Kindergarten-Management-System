@@ -2,8 +2,11 @@
 
 import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { processPayment, cancelReceipt } from "@/app/actions/payment-actions";
+import {
+  applyCancelToBalances,
+  applyPaymentToBalances,
+} from "@/lib/payment-balances";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,8 +69,8 @@ export function PaymentsPageClient({
   nextReceiptNumber: number;
   currentAcademicYear: string;
 }) {
-  const router = useRouter();
   const [receipts, setReceipts] = useState(initialReceipts);
+  const [localBalances, setLocalBalances] = useState(balances);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -80,7 +83,9 @@ export function PaymentsPageClient({
   const [payReceiptNumber, setPayReceiptNumber] = useState(nextReceiptNumber);
 
   const isOverpay =
-    !!payStudentId && !!payAmount && parseFloat(payAmount) > (balances[payStudentId] ?? 0) + 0.001;
+    !!payStudentId &&
+    !!payAmount &&
+    parseFloat(payAmount) > (localBalances[payStudentId] ?? 0) + 0.001;
 
   const filtered = receipts.filter((r) => {
     if (!search) return true;
@@ -108,15 +113,17 @@ export function PaymentsPageClient({
       setReceipts((prev) => [
         {
           ...result.receipt,
-          issueDate: result.receipt.issueDate.toISOString(),
+          issueDate: result.receipt.issueDate,
           isCanceled: false,
           cancelReason: null,
           payment: result.payment,
         },
         ...prev,
       ]);
+      setLocalBalances((prev) =>
+        applyPaymentToBalances(prev, result.payment.studentId, result.receipt.amount),
+      );
       setOpen(false);
-      router.refresh();
       setPayReceiptNumber((prev) => prev + 1);
     } catch (err) {
       setPaymentError(errorMessage(err));
@@ -144,9 +151,15 @@ export function PaymentsPageClient({
             : r
         )
       );
+      setLocalBalances((prev) =>
+        applyCancelToBalances(
+          prev,
+          selectedReceipt.payment.studentId,
+          selectedReceipt.amount,
+        ),
+      );
       setCancelOpen(false);
       setSelectedReceipt(null);
-      router.refresh();
     } catch (err) {
       setCancelError(errorMessage(err));
     } finally {
@@ -168,7 +181,6 @@ export function PaymentsPageClient({
               setPaymentError(null);
               setPayStudentId("");
               setPayAmount("");
-              setPayReceiptNumber(nextReceiptNumber);
             }
           }}
         >
@@ -201,7 +213,7 @@ export function PaymentsPageClient({
                 <StudentSearchPicker
                   key={open ? "open" : "closed"}
                   students={students}
-                  balances={balances}
+                  balances={localBalances}
                   value={payStudentId}
                   onChange={(v) => {
                     setPayStudentId(v);
@@ -229,7 +241,7 @@ export function PaymentsPageClient({
                 <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                   <p>
                     المبلغ أكبر من الرصيد المستحق (
-                    {(balances[payStudentId] ?? 0).toFixed(3)} د.أ) — سيترك رصيداً دائناً للطالب.
+                    {(localBalances[payStudentId] ?? 0).toFixed(3)} د.أ) — سيترك رصيداً دائناً للطالب.
                   </p>
                   <label className="flex items-center gap-2">
                     <input type="checkbox" name="confirmOverpay" required className="size-4" />

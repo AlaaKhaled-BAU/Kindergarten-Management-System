@@ -1,10 +1,22 @@
-import { randomBytes } from "node:crypto";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { prisma } from "./prisma";
 import { ensureDatabaseReady } from "./db-init";
 
+function isOnCloudflare(): boolean {
+  try {
+    const env = getCloudflareContext().env as unknown as {
+      HYPERDRIVE?: { connectionString?: string };
+    };
+    return !!env?.HYPERDRIVE?.connectionString;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * In-memory settings cache -- and the single choke point that guarantees
- * the database schema exists before anything queries it (see refresh()).
+ * In-memory settings cache — and on Electron/local the choke point that
+ * guarantees the database schema exists before anything queries it (see
+ * refresh()). Cloudflare skips fee seeding here; deploy seed handles Postgres.
  *
  * Next.js compiles proxy.ts (middleware) into a separate bundle from
  * server actions, each with its OWN module instance and therefore its own
@@ -19,19 +31,12 @@ let cache: Record<string, string> = {};
 let migrated = false;
 
 async function refresh(): Promise<void> {
-  if (!migrated) {
+  if (!migrated && !isOnCloudflare()) {
     await ensureDatabaseReady();
     migrated = true;
   }
   const rows = await prisma.setting.findMany();
   cache = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-
-  if (!cache.cookieSecret) {
-    cache.cookieSecret = randomBytes(32).toString("hex");
-    await prisma.setting.create({
-      data: { key: "cookieSecret", value: cache.cookieSecret },
-    });
-  }
 }
 
 let initialized = false;

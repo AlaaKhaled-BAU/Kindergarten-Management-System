@@ -6,6 +6,7 @@ import { logEvent } from "@/lib/logger";
 import { getSetting } from "@/lib/settings";
 import { requireAuth, requireAdmin, assertValidFinancialDate, validatePositiveNumber } from "./validation";
 import { roundMoney } from "@/lib/utils";
+import { toProcessPaymentDto } from "@/lib/payment-balances";
 
 interface ProcessPaymentInput {
   studentId: number;
@@ -68,9 +69,11 @@ export async function processPayment(input: ProcessPaymentInput) {
     throw new Error(`لا يمكن أن يتجاوز مبلغ الدفع ${maxPaymentAmount} ديناراً`);
   }
 
+  const kgName = (await getSetting("kindergartenName")) ?? "الروضة";
+
   for (let attempt = 1; attempt <= MAX_RECEIPT_ATTEMPTS; attempt++) {
     try {
-      return await attemptProcessPayment(input, actor);
+      return await attemptProcessPayment(input, actor, kgName);
     } catch (err) {
       if (isReceiptNumberCollision(err) && attempt < MAX_RECEIPT_ATTEMPTS) continue;
       throw err;
@@ -87,7 +90,11 @@ export async function getNextReceiptNumber(): Promise<number> {
   return (max._max.receiptNumber ?? 0) + 1;
 }
 
-async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) {
+async function attemptProcessPayment(
+  input: ProcessPaymentInput,
+  actor: string,
+  kgName: string,
+) {
   return prisma.$transaction(async (tx) => {
     const student = await tx.student.findUniqueOrThrow({
       where: { id: input.studentId },
@@ -97,7 +104,6 @@ async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) 
       throw new Error("لا يمكن تسجيل دفعة لطالب غير نشط");
     }
 
-    const kgName = (await getSetting("kindergartenName")) ?? "الروضة";
     const amount = roundMoney(input.amount);
 
     let nextReceiptNumber = input.receiptNumber;
@@ -156,7 +162,7 @@ async function attemptProcessPayment(input: ProcessPaymentInput, actor: string) 
     });
 
     await logEvent("receipt_created", { receiptId: receipt.id, studentId: input.studentId });
-    return { payment, receipt };
+    return toProcessPaymentDto({ payment, receipt });
   });
 }
 
