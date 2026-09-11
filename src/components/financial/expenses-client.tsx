@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createExpense, updateExpense, deleteExpense, createFixedExpenses } from "@/app/actions/expense-actions";
 import { FIXED_EXPENSE_CATEGORIES } from "@/lib/fixed-expenses";
 import { exportExpenses } from "@/app/actions/export-actions";
+import { FinancialExportDialog } from "@/components/financial/export-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,10 +18,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Download, Repeat } from "lucide-react";
+import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
 import { format } from "date-fns";
 import { ImportDialog } from "@/components/financial/import-dialog";
-import { triggerDownload } from "@/lib/download-utils";
 
 interface Expense {
   id: number;
@@ -128,20 +128,16 @@ export function ExpensesPageClient({
     }
   }
 
-  async function handleExport() {
-    const result = await exportExpenses();
-    triggerDownload(result.base64, result.filename);
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">المصروفات</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="me-2 size-4" />
-            تصدير إلى Excel
-          </Button>
+          <FinancialExportDialog
+            title="تصدير المصروفات"
+            includeOtherLabel="تضمين الإيرادات أيضاً"
+            onExport={exportExpenses}
+          />
           <ImportDialog type="expense" onSuccess={() => router.refresh()} />
           <Dialog
             open={fixedOpen}

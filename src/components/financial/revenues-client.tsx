@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createRevenue, updateRevenue, deleteRevenue } from "@/app/actions/revenue-actions";
 import { exportRevenues } from "@/app/actions/export-actions";
+import { FinancialExportDialog } from "@/components/financial/export-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,10 +17,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ImportDialog } from "@/components/financial/import-dialog";
-import { triggerDownload } from "@/lib/download-utils";
 
 interface Revenue {
   id: number;
@@ -98,20 +98,16 @@ export function RevenuesPageClient({
     }
   }
 
-  async function handleExport() {
-    const result = await exportRevenues();
-    triggerDownload(result.base64, result.filename);
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">الإيرادات</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="me-2 size-4" />
-            تصدير إلى Excel
-          </Button>
+          <FinancialExportDialog
+            title="تصدير الإيرادات"
+            includeOtherLabel="تضمين المصروفات أيضاً"
+            onExport={exportRevenues}
+          />
           <ImportDialog type="revenue" onSuccess={() => router.refresh()} />
           <Dialog
           open={open}

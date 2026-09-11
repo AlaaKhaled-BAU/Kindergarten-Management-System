@@ -3,21 +3,61 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/app/actions/validation";
 import { roundMoney } from "@/lib/utils";
+import { academicYearPrismaFilter } from "@/lib/academic-year";
+import { MONTH_NAMES } from "@/lib/months";
 import {
   exportRevenuesToExcel,
   exportExpensesToExcel,
+  exportFinancialsToExcel,
   exportStudentBalancesToExcel,
 } from "@/lib/excel-utils";
 
-export async function exportRevenues(year?: number) {
-  await requireAdmin();
+export type FinancialExportFilter =
+  | { type: "month"; year: number; months: number[] }
+  | { type: "academicYear"; academicYear: string };
 
+function normalizeMonths(months: number[]): number[] {
+  const unique = [...new Set(months)].filter(
+    (m) => Number.isInteger(m) && m >= 1 && m <= 12
+  );
+  if (unique.length === 0) {
+    throw new Error("اختر شهراً واحداً على الأقل");
+  }
+  return unique.sort((a, b) => a - b);
+}
+
+function financialWhere(filter: FinancialExportFilter) {
+  if (filter.type === "month") {
+    if (!Number.isInteger(filter.year) || filter.year < 2000 || filter.year > 2100) {
+      throw new Error("السنة غير صحيحة");
+    }
+    const months = normalizeMonths(filter.months);
+    return { year: filter.year, month: { in: months } };
+  }
+  return academicYearPrismaFilter(filter.academicYear);
+}
+
+function exportFilename(
+  kind: "الإيرادات" | "المصروفات" | "الإيرادات_والمصروفات",
+  filter: FinancialExportFilter
+): string {
+  if (filter.type === "month") {
+    const months = normalizeMonths(filter.months);
+    if (months.length === 12) {
+      return `${kind}_${filter.year}.xlsx`;
+    }
+    const labels = months.map((m) => MONTH_NAMES[m - 1] ?? m).join("_");
+    return `${kind}_${labels}_${filter.year}.xlsx`;
+  }
+  return `${kind}_${filter.academicYear}.xlsx`;
+}
+
+async function loadRevenues(filter: FinancialExportFilter) {
   const revenues = await prisma.revenue.findMany({
-    where: { isActive: true, ...(year ? { year } : {}) },
-    orderBy: { recordDate: "desc" },
+    where: { isActive: true, ...financialWhere(filter) },
+    orderBy: [{ year: "asc" }, { month: "asc" }, { recordDate: "asc" }],
   });
-
-  const data = revenues.map((r) => ({
+  return revenues.map((r) => ({
     year: r.year,
     month: r.month,
     category: r.category,
@@ -26,23 +66,14 @@ export async function exportRevenues(year?: number) {
     source: r.source,
     date: r.recordDate,
   }));
-
-  const buffer = await exportRevenuesToExcel(data);
-  return {
-    base64: buffer.toString("base64"),
-    filename: "الإيرادات.xlsx",
-  };
 }
 
-export async function exportExpenses(year?: number) {
-  await requireAdmin();
-
+async function loadExpenses(filter: FinancialExportFilter) {
   const expenses = await prisma.expense.findMany({
-    where: { isActive: true, ...(year ? { year } : {}) },
-    orderBy: { expenseDate: "desc" },
+    where: { isActive: true, ...financialWhere(filter) },
+    orderBy: [{ year: "asc" }, { month: "asc" }, { expenseDate: "asc" }],
   });
-
-  const data = expenses.map((e) => ({
+  return expenses.map((e) => ({
     year: e.year,
     month: e.month,
     category: e.category,
@@ -51,11 +82,45 @@ export async function exportExpenses(year?: number) {
     vendor: e.vendor,
     date: e.expenseDate,
   }));
+}
 
+export async function exportRevenues(filter: FinancialExportFilter, includeExpenses = false) {
+  await requireAdmin();
+
+  if (includeExpenses) {
+    const [revenues, expenses] = await Promise.all([loadRevenues(filter), loadExpenses(filter)]);
+    const buffer = await exportFinancialsToExcel(revenues, expenses);
+    return {
+      base64: buffer.toString("base64"),
+      filename: exportFilename("الإيرادات_والمصروفات", filter),
+    };
+  }
+
+  const data = await loadRevenues(filter);
+  const buffer = await exportRevenuesToExcel(data);
+  return {
+    base64: buffer.toString("base64"),
+    filename: exportFilename("الإيرادات", filter),
+  };
+}
+
+export async function exportExpenses(filter: FinancialExportFilter, includeRevenues = false) {
+  await requireAdmin();
+
+  if (includeRevenues) {
+    const [revenues, expenses] = await Promise.all([loadRevenues(filter), loadExpenses(filter)]);
+    const buffer = await exportFinancialsToExcel(revenues, expenses);
+    return {
+      base64: buffer.toString("base64"),
+      filename: exportFilename("الإيرادات_والمصروفات", filter),
+    };
+  }
+
+  const data = await loadExpenses(filter);
   const buffer = await exportExpensesToExcel(data);
   return {
     base64: buffer.toString("base64"),
-    filename: "المصروفات.xlsx",
+    filename: exportFilename("المصروفات", filter),
   };
 }
 
