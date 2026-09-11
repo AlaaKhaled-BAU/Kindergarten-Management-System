@@ -1,6 +1,5 @@
 import ExcelJS from "exceljs";
 import { MONTH_NAMES } from "@/lib/months";
-import { roundMoney } from "@/lib/utils";
 
 export const MONTH_INDEX: Record<string, number> = {
   "يناير": 1, "فبراير": 2, "مارس": 3, "إبريل": 4,
@@ -73,6 +72,19 @@ function styleHeader(sheet: ExcelJS.Worksheet, colCount: number) {
   }
 }
 
+const SUM_ROW_FILL: ExcelJS.Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFFFFF00" },
+};
+
+function styleSumRow(row: ExcelJS.Row, colCount: number, bold = false) {
+  if (bold) row.font = { bold: true };
+  for (let c = 1; c <= colCount; c++) {
+    row.getCell(c).fill = SUM_ROW_FILL;
+  }
+}
+
 function monthLabel(month: number): string {
   return MONTH_NAMES[month - 1] || String(month);
 }
@@ -83,23 +95,52 @@ function sortRows<T extends { year: number; month: number; date: Date }>(data: T
   );
 }
 
-function monthlyTotals(data: Array<{ year: number; month: number; amount: number }>) {
-  const totals = new Map<string, { year: number; month: number; count: number; total: number }>();
+function uniqueYearMonths(data: Array<{ year: number; month: number }>) {
+  const map = new Map<string, { year: number; month: number }>();
   for (const row of data) {
-    const key = `${row.year}-${row.month}`;
-    const current = totals.get(key) ?? { year: row.year, month: row.month, count: 0, total: 0 };
-    current.count += 1;
-    current.total = roundMoney(current.total + row.amount);
-    totals.set(key, current);
+    map.set(`${row.year}-${row.month}`, { year: row.year, month: row.month });
   }
-  return [...totals.values()].sort((a, b) => a.year - b.year || a.month - b.month);
+  return [...map.values()].sort((a, b) => a.year - b.year || a.month - b.month);
 }
+
+/** Fixed ranges on detail sheets — users can add rows within these rows and formulas update. */
+const DETAIL_FIRST_ROW = 2;
+const DETAIL_LAST_ROW = 501;
+
+function detailColumnRange(sheetName: string, column: string): string {
+  return `'${sheetName}'!$${column}$${DETAIL_FIRST_ROW}:$${column}$${DETAIL_LAST_ROW}`;
+}
+
+function sumifsFormula(
+  amountColumn: string,
+  sheetName: string,
+  summaryRow: number
+): string {
+  const amount = detailColumnRange(sheetName, amountColumn);
+  const year = detailColumnRange(sheetName, "A");
+  const month = detailColumnRange(sheetName, "B");
+  return `SUMIFS(${amount},${year},A${summaryRow},${month},B${summaryRow})`;
+}
+
+function countifsFormula(sheetName: string, summaryRow: number): string {
+  const year = detailColumnRange(sheetName, "A");
+  const month = detailColumnRange(sheetName, "B");
+  return `COUNTIFS(${year},A${summaryRow},${month},B${summaryRow})`;
+}
+
+const REVENUE_SHEET = "الإيرادات";
+const EXPENSE_SHEET = "المصروفات";
+const AMOUNT_COLUMN = "D";
 
 function addMonthlySummarySheet(
   workbook: ExcelJS.Workbook,
-  data: Array<{ year: number; month: number; amount: number }>,
-  sheetName = "المجموع الشهري"
+  data: Array<{ year: number; month: number }>,
+  options: {
+    sheetName?: string;
+    detailSheetName: string;
+  }
 ) {
+  const sheetName = options.sheetName ?? "المجموع الشهري";
   const sheet = workbook.addWorksheet(sheetName);
   applyRtlSheet(sheet);
 
@@ -113,34 +154,43 @@ function addMonthlySummarySheet(
   rightAlignColumns(sheet);
   styleHeader(sheet, 4);
 
-  const months = monthlyTotals(data);
-  let grandTotal = 0;
-  let grandCount = 0;
+  const months = uniqueYearMonths(data);
+  const firstDataRow = 2;
+  const lastDataRow = months.length > 0 ? firstDataRow + months.length - 1 : firstDataRow;
 
   for (const row of months) {
-    grandTotal = roundMoney(grandTotal + row.total);
-    grandCount += row.count;
-    sheet.addRow({
+    const excelRow = sheet.addRow({
       year: row.year,
       month: monthLabel(row.month),
-      count: row.count,
-      total: row.total,
     });
+    const r = excelRow.number;
+    excelRow.getCell("count").value = {
+      formula: countifsFormula(options.detailSheetName, r),
+    };
+    excelRow.getCell("total").value = {
+      formula: sumifsFormula(AMOUNT_COLUMN, options.detailSheetName, r),
+    };
+    styleSumRow(excelRow, 4);
   }
 
   const totalRow = sheet.addRow({
     year: "",
     month: "الإجمالي",
-    count: grandCount,
-    total: grandTotal,
   });
-  totalRow.font = { bold: true };
+  if (months.length > 0) {
+    totalRow.getCell("count").value = { formula: `SUM(C${firstDataRow}:C${lastDataRow})` };
+    totalRow.getCell("total").value = { formula: `SUM(D${firstDataRow}:D${lastDataRow})` };
+  } else {
+    totalRow.getCell("count").value = 0;
+    totalRow.getCell("total").value = 0;
+  }
+  styleSumRow(totalRow, 4, true);
 
   sheet.getColumn("total").numFmt = "#,##0.000";
 }
 
 function addRevenueDetailSheet(workbook: ExcelJS.Workbook, data: RevenueRow[]) {
-  const sheet = workbook.addWorksheet("الإيرادات");
+  const sheet = workbook.addWorksheet(REVENUE_SHEET);
   applyRtlSheet(sheet);
 
   sheet.columns = [
@@ -172,7 +222,7 @@ function addRevenueDetailSheet(workbook: ExcelJS.Workbook, data: RevenueRow[]) {
 }
 
 function addExpenseDetailSheet(workbook: ExcelJS.Workbook, data: ExpenseRow[]) {
-  const sheet = workbook.addWorksheet("المصروفات");
+  const sheet = workbook.addWorksheet(EXPENSE_SHEET);
   applyRtlSheet(sheet);
 
   sheet.columns = [
@@ -222,46 +272,40 @@ function addCombinedTotalsSheet(
   rightAlignColumns(sheet);
   styleHeader(sheet, 5);
 
-  const combined = new Map<string, { year: number; month: number; revenue: number; expense: number }>();
-  for (const row of monthlyTotals(revenues)) {
-    combined.set(`${row.year}-${row.month}`, {
-      year: row.year,
-      month: row.month,
-      revenue: row.total,
-      expense: 0,
-    });
-  }
-  for (const row of monthlyTotals(expenses)) {
-    const key = `${row.year}-${row.month}`;
-    const current = combined.get(key) ?? { year: row.year, month: row.month, revenue: 0, expense: 0 };
-    current.expense = row.total;
-    combined.set(key, current);
-  }
+  const combined = uniqueYearMonths([...revenues, ...expenses]);
+  const firstDataRow = 2;
+  const lastDataRow = combined.length > 0 ? firstDataRow + combined.length - 1 : firstDataRow;
 
-  const months = [...combined.values()].sort((a, b) => a.year - b.year || a.month - b.month);
-  let totalRevenue = 0;
-  let totalExpense = 0;
-
-  for (const row of months) {
-    totalRevenue = roundMoney(totalRevenue + row.revenue);
-    totalExpense = roundMoney(totalExpense + row.expense);
-    sheet.addRow({
+  for (const row of combined) {
+    const excelRow = sheet.addRow({
       year: row.year,
       month: monthLabel(row.month),
-      revenue: row.revenue,
-      expense: row.expense,
-      net: roundMoney(row.revenue - row.expense),
     });
+    const r = excelRow.number;
+    excelRow.getCell("revenue").value = {
+      formula: sumifsFormula(AMOUNT_COLUMN, REVENUE_SHEET, r),
+    };
+    excelRow.getCell("expense").value = {
+      formula: sumifsFormula(AMOUNT_COLUMN, EXPENSE_SHEET, r),
+    };
+    excelRow.getCell("net").value = { formula: `C${r}-D${r}` };
+    styleSumRow(excelRow, 5);
   }
 
   const totalRow = sheet.addRow({
     year: "",
     month: "الإجمالي",
-    revenue: totalRevenue,
-    expense: totalExpense,
-    net: roundMoney(totalRevenue - totalExpense),
   });
-  totalRow.font = { bold: true };
+  if (combined.length > 0) {
+    totalRow.getCell("revenue").value = { formula: `SUM(C${firstDataRow}:C${lastDataRow})` };
+    totalRow.getCell("expense").value = { formula: `SUM(D${firstDataRow}:D${lastDataRow})` };
+    totalRow.getCell("net").value = { formula: `SUM(E${firstDataRow}:E${lastDataRow})` };
+  } else {
+    totalRow.getCell("revenue").value = 0;
+    totalRow.getCell("expense").value = 0;
+    totalRow.getCell("net").value = 0;
+  }
+  styleSumRow(totalRow, 5, true);
 
   sheet.getColumn("revenue").numFmt = "#,##0.000";
   sheet.getColumn("expense").numFmt = "#,##0.000";
@@ -276,14 +320,14 @@ async function workbookToBuffer(workbook: ExcelJS.Workbook): Promise<Buffer> {
 export async function exportRevenuesToExcel(data: RevenueRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   addRevenueDetailSheet(workbook, data);
-  addMonthlySummarySheet(workbook, data);
+  addMonthlySummarySheet(workbook, data, { detailSheetName: REVENUE_SHEET });
   return workbookToBuffer(workbook);
 }
 
 export async function exportExpensesToExcel(data: ExpenseRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   addExpenseDetailSheet(workbook, data);
-  addMonthlySummarySheet(workbook, data);
+  addMonthlySummarySheet(workbook, data, { detailSheetName: EXPENSE_SHEET });
   return workbookToBuffer(workbook);
 }
 
@@ -293,9 +337,15 @@ export async function exportFinancialsToExcel(
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   addRevenueDetailSheet(workbook, revenues);
-  addMonthlySummarySheet(workbook, revenues, "مجموع الإيرادات");
+  addMonthlySummarySheet(workbook, revenues, {
+    sheetName: "مجموع الإيرادات",
+    detailSheetName: REVENUE_SHEET,
+  });
   addExpenseDetailSheet(workbook, expenses);
-  addMonthlySummarySheet(workbook, expenses, "مجموع المصروفات");
+  addMonthlySummarySheet(workbook, expenses, {
+    sheetName: "مجموع المصروفات",
+    detailSheetName: EXPENSE_SHEET,
+  });
   addCombinedTotalsSheet(workbook, revenues, expenses);
   return workbookToBuffer(workbook);
 }
