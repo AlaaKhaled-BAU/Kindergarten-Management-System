@@ -78,12 +78,16 @@ const SUM_ROW_FILL: ExcelJS.Fill = {
   fgColor: { argb: "FFFFFF00" },
 };
 
-function styleSumRow(row: ExcelJS.Row, colCount: number, bold = false) {
-  if (bold) row.font = { bold: true };
-  for (let c = 1; c <= colCount; c++) {
-    row.getCell(c).fill = SUM_ROW_FILL;
+function styleSumCells(row: ExcelJS.Row, columnKeys: string[], bold = false) {
+  for (const key of columnKeys) {
+    const cell = row.getCell(key);
+    cell.fill = SUM_ROW_FILL;
+    if (bold) cell.font = { bold: true };
   }
 }
+
+const MONTHLY_SUM_COLUMNS = ["count", "total"] as const;
+const COMBINED_SUM_COLUMNS = ["revenue", "expense", "net"] as const;
 
 function monthLabel(month: number): string {
   return MONTH_NAMES[month - 1] || String(month);
@@ -170,7 +174,7 @@ function addMonthlySummarySheet(
     excelRow.getCell("total").value = {
       formula: sumifsFormula(AMOUNT_COLUMN, options.detailSheetName, r),
     };
-    styleSumRow(excelRow, 4);
+    styleSumCells(excelRow, [...MONTHLY_SUM_COLUMNS]);
   }
 
   const totalRow = sheet.addRow({
@@ -184,7 +188,7 @@ function addMonthlySummarySheet(
     totalRow.getCell("count").value = 0;
     totalRow.getCell("total").value = 0;
   }
-  styleSumRow(totalRow, 4, true);
+  styleSumCells(totalRow, [...MONTHLY_SUM_COLUMNS], true);
 
   sheet.getColumn("total").numFmt = "#,##0.000";
 }
@@ -289,7 +293,7 @@ function addCombinedTotalsSheet(
       formula: sumifsFormula(AMOUNT_COLUMN, EXPENSE_SHEET, r),
     };
     excelRow.getCell("net").value = { formula: `C${r}-D${r}` };
-    styleSumRow(excelRow, 5);
+    styleSumCells(excelRow, [...COMBINED_SUM_COLUMNS]);
   }
 
   const totalRow = sheet.addRow({
@@ -305,7 +309,7 @@ function addCombinedTotalsSheet(
     totalRow.getCell("expense").value = 0;
     totalRow.getCell("net").value = 0;
   }
-  styleSumRow(totalRow, 5, true);
+  styleSumCells(totalRow, [...COMBINED_SUM_COLUMNS], true);
 
   sheet.getColumn("revenue").numFmt = "#,##0.000";
   sheet.getColumn("expense").numFmt = "#,##0.000";

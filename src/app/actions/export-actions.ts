@@ -54,7 +54,11 @@ function exportFilename(
 
 async function loadRevenues(filter: FinancialExportFilter) {
   const revenues = await prisma.revenue.findMany({
-    where: { isActive: true, ...financialWhere(filter) },
+    where: {
+      isActive: true,
+      ...financialWhere(filter),
+      NOT: { source: "Payment" },
+    },
     orderBy: [{ year: "asc" }, { month: "asc" }, { recordDate: "asc" }],
   });
   return revenues.map((r) => ({
