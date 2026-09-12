@@ -146,9 +146,12 @@ model Revenue {
   description String?
   recordDate  DateTime
   source      String?
+  /** Receipt.id this row was derived from, for source Payment/Cancellation. */
+  sourceId    Int?
   isActive    Boolean  @default(true)
 
   @@index([year, month])
+  @@index([source, sourceId])
 }
 
 model Expense {

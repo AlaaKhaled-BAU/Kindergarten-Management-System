@@ -2,7 +2,11 @@
 
 import { errorMessage } from "@/lib/utils";
 import { useState } from "react";
-import { processPayment, cancelReceipt } from "@/app/actions/payment-actions";
+import {
+  processPayment,
+  cancelReceipt,
+  updateReceipt,
+} from "@/app/actions/payment-actions";
 import {
   applyCancelToBalances,
   applyPaymentToBalances,
@@ -26,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { StudentSearchPicker } from "@/components/students/student-search-picker";
-import { XCircle, Search } from "lucide-react";
+import { XCircle, Search, Pencil } from "lucide-react";
 import { format } from "date-fns";
 
 interface Receipt {
@@ -78,6 +82,8 @@ export function PaymentsPageClient({
   const [pending, setPending] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [editReceipt, setEditReceipt] = useState<Receipt | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [payStudentId, setPayStudentId] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payReceiptNumber, setPayReceiptNumber] = useState(nextReceiptNumber);
@@ -127,6 +133,48 @@ export function PaymentsPageClient({
       setPayReceiptNumber((prev) => prev + 1);
     } catch (err) {
       setPaymentError(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleEdit(formData: FormData) {
+    if (!editReceipt) return;
+
+    setEditError(null);
+    setPending(true);
+    try {
+      const result = await updateReceipt({
+        receiptId: editReceipt.id,
+        amount: parseFloat(formData.get("amount") as string),
+        paymentDate: new Date(formData.get("paymentDate") as string),
+        paymentMethod: formData.get("paymentMethod") as string,
+        referenceNumber: (formData.get("referenceNumber") as string) || undefined,
+        notes: (formData.get("notes") as string) || undefined,
+      });
+
+      setReceipts((prev) =>
+        prev.map((r) =>
+          r.id === editReceipt.id
+            ? {
+                ...r,
+                amount: result.receipt.amount,
+                issueDate: result.receipt.issueDate,
+                payment: { ...r.payment, ...result.payment },
+              }
+            : r,
+        ),
+      );
+      setLocalBalances((prev) =>
+        applyPaymentToBalances(
+          prev,
+          editReceipt.payment.studentId,
+          result.receipt.amount - editReceipt.amount,
+        ),
+      );
+      setEditReceipt(null);
+    } catch (err) {
+      setEditError(errorMessage(err));
     } finally {
       setPending(false);
     }
@@ -350,19 +398,33 @@ export function PaymentsPageClient({
                   </td>
                   <td className="py-3 px-4 text-end">
                     {!r.isCanceled && canCancel && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label="إلغاء الإيصال"
-                        className="text-destructive hover:text-destructive h-auto px-2"
-                        onClick={() => {
-                          setCancelError(null);
-                          setSelectedReceipt(r);
-                          setCancelOpen(true);
-                        }}
-                      >
-                        <XCircle className="size-4" />
-                      </Button>
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label="تعديل الإيصال"
+                          className="h-auto px-2"
+                          onClick={() => {
+                            setEditError(null);
+                            setEditReceipt(r);
+                          }}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label="إلغاء الإيصال"
+                          className="text-destructive hover:text-destructive h-auto px-2"
+                          onClick={() => {
+                            setCancelError(null);
+                            setSelectedReceipt(r);
+                            setCancelOpen(true);
+                          }}
+                        >
+                          <XCircle className="size-4" />
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -371,6 +433,113 @@ export function PaymentsPageClient({
           </tbody>
         </table>
       </div>
+
+      <Dialog
+        open={!!editReceipt}
+        onOpenChange={(v) => {
+          if (!v) {
+            setEditReceipt(null);
+            setEditError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              تعديل الإيصال رقم {editReceipt?.receiptNumber}
+            </DialogTitle>
+          </DialogHeader>
+          {editReceipt && (
+            <form action={handleEdit} className="flex min-h-0 flex-col gap-4">
+              <p className="text-sm text-muted-foreground">
+                الطالب: <strong>{editReceipt.studentName}</strong> — سيتم تحديث
+                سند القبض وكشف الحساب والإيرادات معاً.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="editAmount">المبلغ *</Label>
+                <Input
+                  id="editAmount"
+                  name="amount"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  required
+                  defaultValue={editReceipt.amount}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editPaymentDate">تاريخ الدفع *</Label>
+                <Input
+                  id="editPaymentDate"
+                  name="paymentDate"
+                  type="date"
+                  required
+                  defaultValue={format(
+                    new Date(editReceipt.issueDate),
+                    "yyyy-MM-dd",
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editPaymentMethod">طريقة الدفع</Label>
+                <Select
+                  name="paymentMethod"
+                  defaultValue={editReceipt.payment.paymentMethod}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(paymentMethods.includes(editReceipt.payment.paymentMethod)
+                      ? paymentMethods
+                      : [editReceipt.payment.paymentMethod, ...paymentMethods]
+                    ).map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editReferenceNumber">رقم مرجعي</Label>
+                <Input
+                  id="editReferenceNumber"
+                  name="referenceNumber"
+                  defaultValue={editReceipt.payment.referenceNumber ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editNotes">ملاحظات</Label>
+                <Textarea
+                  id="editNotes"
+                  name="notes"
+                  rows={2}
+                  defaultValue={editReceipt.payment.notes ?? ""}
+                />
+              </div>
+              {editError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {editError}
+                </p>
+              )}
+              <div className="flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditReceipt(null)}
+                  disabled={pending}
+                >
+                  تراجع
+                </Button>
+                <Button type="submit" disabled={pending}>
+                  {pending ? "جارٍ الحفظ..." : "حفظ التعديل"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>

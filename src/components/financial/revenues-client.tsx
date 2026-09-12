@@ -247,7 +247,9 @@ export function RevenuesPageClient({
                   </td>
                   <td className="py-3 px-4 text-end">
                     {r.source === "Payment" || r.source === "Cancellation" ? (
-                      <span className="text-xs text-muted-foreground">تلقائي</span>
+                      <span className="text-xs text-muted-foreground">
+                        تعديل من صفحة الدفعات
+                      </span>
                     ) : (
                     <div className="flex gap-1 justify-end">
                       <Button

@@ -19,6 +19,15 @@ interface ProcessPaymentInput {
   receiptNumber?: number;
 }
 
+interface UpdateReceiptInput {
+  receiptId: number;
+  amount: number;
+  paymentDate: Date;
+  paymentMethod: string;
+  referenceNumber?: string;
+  notes?: string;
+}
+
 interface CancelReceiptInput {
   receiptId: number;
   reason: string;
@@ -158,11 +167,105 @@ async function attemptProcessPayment(
         description: `دفعة من الطالب: ${student.firstName} ${student.lastName}`,
         recordDate: paymentDate,
         source: "Payment",
+        sourceId: receipt.id,
       },
     });
 
     await logEvent("receipt_created", { receiptId: receipt.id, studentId: input.studentId });
     return toProcessPaymentDto({ payment, receipt });
+  });
+}
+
+/**
+ * Correcting a mis-keyed receipt. A payment is spread over four tables --
+ * Payment (the event), Receipt (the printed document), Transaction (the
+ * ledger that drives the balance) and Revenue (what the reports read) -- so
+ * all four move together or none do.
+ */
+export async function updateReceipt(input: UpdateReceiptInput) {
+  // Rewrites a posted ledger entry, same weight as a cancellation.
+  const actor = await requireAdmin();
+
+  validatePositiveNumber(input.amount, "المبلغ");
+  assertValidFinancialDate(new Date(input.paymentDate), "تاريخ الدفع");
+
+  const maxPaymentAmount = Number((await getSetting("maxPaymentAmount")) ?? 0);
+  if (maxPaymentAmount > 0 && input.amount > maxPaymentAmount) {
+    throw new Error(`لا يمكن أن يتجاوز مبلغ الدفع ${maxPaymentAmount} ديناراً`);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const receipt = await tx.receipt.findUniqueOrThrow({
+      where: { id: input.receiptId },
+      include: { payment: { include: { student: true } } },
+    });
+
+    if (receipt.isCanceled) {
+      throw new Error("لا يمكن تعديل إيصال ملغي");
+    }
+
+    const amount = roundMoney(input.amount);
+    const paymentDate = new Date(input.paymentDate);
+
+    const payment = await tx.payment.update({
+      where: { id: receipt.paymentId },
+      data: {
+        amount,
+        paymentDate,
+        paymentMethod: input.paymentMethod,
+        referenceNumber: input.referenceNumber ?? null,
+        notes: input.notes ?? null,
+      },
+    });
+
+    const updatedReceipt = await tx.receipt.update({
+      where: { id: receipt.id },
+      data: { amount, issueDate: paymentDate },
+    });
+
+    await tx.transaction.updateMany({
+      where: {
+        transactionType: "Payment",
+        referenceId: `Receipt:${receipt.receiptNumber}`,
+      },
+      data: { amount: -amount, transactionDate: paymentDate },
+    });
+
+    const revenueData = {
+      amount,
+      recordDate: paymentDate,
+      year: paymentDate.getFullYear(),
+      month: paymentDate.getMonth() + 1,
+    };
+    const { count } = await tx.revenue.updateMany({
+      where: { source: "Payment", sourceId: receipt.id, isActive: true },
+      data: revenueData,
+    });
+    // Payments issued before revenue rows carried a sourceId can be missing
+    // one entirely; write it now rather than leave the reports short.
+    if (count === 0) {
+      await tx.revenue.create({
+        data: {
+          ...revenueData,
+          category: "رسوم دراسية",
+          description: `دفعة من الطالب: ${receipt.payment.student.firstName} ${receipt.payment.student.lastName}`,
+          source: "Payment",
+          sourceId: receipt.id,
+        },
+      });
+    }
+
+    await logEvent("receipt_updated", {
+      receiptId: receipt.id,
+      actor,
+      before: {
+        amount: receipt.amount,
+        issueDate: receipt.issueDate.toISOString(),
+      },
+      after: { amount, issueDate: paymentDate.toISOString() },
+    });
+
+    return toProcessPaymentDto({ payment, receipt: updatedReceipt });
   });
 }
 
@@ -230,6 +333,7 @@ export async function cancelReceipt(input: CancelReceiptInput) {
         description: `إلغاء إيصال رقم ${receipt.receiptNumber}`,
         recordDate: receipt.issueDate,
         source: "Cancellation",
+        sourceId: receipt.id,
       },
     });
 
