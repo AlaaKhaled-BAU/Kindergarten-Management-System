@@ -156,7 +156,7 @@ async function attemptProcessPayment(
         category: "رسوم دراسية",
         amount,
         description: `دفعة من الطالب: ${student.firstName} ${student.lastName}`,
-        recordDate: new Date(),
+        recordDate: paymentDate,
         source: "Payment",
       },
     });
@@ -228,7 +228,7 @@ export async function cancelReceipt(input: CancelReceiptInput) {
         category: "رسوم دراسية",
         amount: -receipt.amount,
         description: `إلغاء إيصال رقم ${receipt.receiptNumber}`,
-        recordDate: new Date(),
+        recordDate: receipt.issueDate,
         source: "Cancellation",
       },
     });
