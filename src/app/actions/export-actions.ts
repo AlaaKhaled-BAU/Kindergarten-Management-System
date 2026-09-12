@@ -52,13 +52,15 @@ function exportFilename(
   return `${kind}_${filter.academicYear}.xlsx`;
 }
 
+function exportRevenueDescription(description: string | null): string | null {
+  if (!description) return null;
+  const cleaned = description.replace(/^دفعة من الطالب:\s*/, "").trim();
+  return cleaned || null;
+}
+
 async function loadRevenues(filter: FinancialExportFilter) {
   const revenues = await prisma.revenue.findMany({
-    where: {
-      isActive: true,
-      ...financialWhere(filter),
-      NOT: { source: "Payment" },
-    },
+    where: { isActive: true, ...financialWhere(filter) },
     orderBy: [{ year: "asc" }, { month: "asc" }, { recordDate: "asc" }],
   });
   return revenues.map((r) => ({
@@ -66,7 +68,7 @@ async function loadRevenues(filter: FinancialExportFilter) {
     month: r.month,
     category: r.category,
     amount: r.amount,
-    description: r.description,
+    description: exportRevenueDescription(r.description),
     source: r.source,
     date: r.recordDate,
   }));

@@ -68,7 +68,10 @@ export async function postEnrolmentCharges(
   actor: string,
   isPromotion = false
 ): Promise<void> {
-  const { tuitionAmount, busFees, additionalFees, discountValue, discountIsPercent } = input;
+  const { tuitionAmount, busFees: rawBusFees, additionalFees: rawAdditionalFees, discountValue: rawDiscountValue, discountIsPercent } = input;
+  const busFees = roundMoney(rawBusFees);
+  const additionalFees = roundMoney(rawAdditionalFees);
+  const discountValue = roundMoney(rawDiscountValue);
   const suffix = isPromotion ? " - ترقية" : "";
   const refSuffix = isPromotion ? ":Promotion" : "";
 
@@ -129,11 +132,13 @@ export async function createStudent(input: CreateStudentInput) {
   validateRequiredString(input.grade, "الصف");
   validateRequiredString(input.academicYear, "السنة الدراسية");
 
-  const busFees = input.busFees ?? 0;
-  const additionalFees = input.additionalFees ?? 0;
-  const discountValue = input.discountValue ?? 0;
+  const busFees = roundMoney(input.busFees ?? 0);
+  const additionalFees = roundMoney(input.additionalFees ?? 0);
+  const discountValue = roundMoney(input.discountValue ?? 0);
   const discountIsPercent = input.discountIsPercent ?? false;
-  const tuitionOverride = input.tuitionOverride ?? null;
+  const tuitionOverride = input.tuitionOverride !== null && input.tuitionOverride !== undefined
+    ? roundMoney(input.tuitionOverride)
+    : null;
 
   validateNonNegativeNumber(busFees, "رسوم الباص");
   validateNonNegativeNumber(additionalFees, "رسوم إضافية");
@@ -219,13 +224,15 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
   return prisma.$transaction(async (tx) => {
     const current = await tx.student.findUniqueOrThrow({ where: { id } });
 
-    const newBusFees = input.busFees ?? current.busFees;
-    const newAdditionalFees = input.additionalFees ?? current.additionalFees;
-    const newDiscountValue = input.discountValue ?? current.discountValue;
+    const newBusFees = roundMoney(input.busFees ?? current.busFees);
+    const newAdditionalFees = roundMoney(input.additionalFees ?? current.additionalFees);
+    const newDiscountValue = roundMoney(input.discountValue ?? current.discountValue);
     const newDiscountIsPercent = input.discountIsPercent ?? current.discountIsPercent;
     const newGrade = input.grade ?? current.grade;
     const newAcademicYear = input.academicYear ?? current.academicYear;
-    const newTuitionOverride = input.tuitionOverride !== undefined ? input.tuitionOverride : current.tuitionOverride;
+    const newTuitionOverride = input.tuitionOverride !== undefined
+      ? (input.tuitionOverride === null ? null : roundMoney(input.tuitionOverride))
+      : current.tuitionOverride;
 
     validateNonNegativeNumber(newBusFees, "رسوم الباص");
     validateNonNegativeNumber(newAdditionalFees, "رسوم إضافية");
@@ -287,12 +294,12 @@ export async function updateStudent(id: number, input: UpdateStudentInput) {
         ...(input.grade !== undefined && { grade: input.grade }),
         ...(input.academicYear !== undefined && { academicYear: input.academicYear }),
         ...(input.notes !== undefined && { notes: input.notes }),
-        ...(input.busFees !== undefined && { busFees: input.busFees }),
-        ...(input.additionalFees !== undefined && { additionalFees: input.additionalFees }),
-        ...(input.discountValue !== undefined && { discountValue: input.discountValue }),
+        ...(input.busFees !== undefined && { busFees: newBusFees }),
+        ...(input.additionalFees !== undefined && { additionalFees: newAdditionalFees }),
+        ...(input.discountValue !== undefined && { discountValue: newDiscountValue }),
         ...(input.discountIsPercent !== undefined && { discountIsPercent: input.discountIsPercent }),
         ...(input.exitStatus !== undefined && { exitStatus: input.exitStatus }),
-        ...(input.tuitionOverride !== undefined && { tuitionOverride: input.tuitionOverride }),
+        ...(input.tuitionOverride !== undefined && { tuitionOverride: newTuitionOverride }),
         ...(input.allergies !== undefined && { allergies: input.allergies }),
         ...(input.medicalNotes !== undefined && { medicalNotes: input.medicalNotes }),
         ...(input.siblingGlobalId !== undefined && { siblingGlobalId: input.siblingGlobalId }),
