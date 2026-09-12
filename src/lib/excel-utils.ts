@@ -13,7 +13,7 @@ export interface RevenueRow {
   category: string;
   amount: number;
   description: string | null;
-  source: string | null;
+  receiptNumber: number | string | null;
   date: Date;
 }
 
@@ -24,6 +24,7 @@ export interface ExpenseRow {
   amount: number;
   description: string | null;
   vendor: string | null;
+  receiptNumber: number | string | null;
   date: Date;
 }
 
@@ -115,26 +116,33 @@ function detailColumnRange(sheetName: string, column: string): string {
   return `'${sheetName}'!$${column}$${DETAIL_FIRST_ROW}:$${column}$${DETAIL_LAST_ROW}`;
 }
 
-function sumifsFormula(
-  amountColumn: string,
+function monthSumFormula(
+  amountCol: string,
+  dateCol: string,
   sheetName: string,
-  summaryRow: number
+  year: number,
+  month: number
 ): string {
-  const amount = detailColumnRange(sheetName, amountColumn);
-  const year = detailColumnRange(sheetName, "A");
-  const month = detailColumnRange(sheetName, "B");
-  return `SUMIFS(${amount},${year},A${summaryRow},${month},B${summaryRow})`;
+  const amount = detailColumnRange(sheetName, amountCol);
+  const dates = detailColumnRange(sheetName, dateCol);
+  return `SUMPRODUCT((YEAR(${dates})=${year})*(MONTH(${dates})=${month})*(${amount}))`;
 }
 
-function countifsFormula(sheetName: string, summaryRow: number): string {
-  const year = detailColumnRange(sheetName, "A");
-  const month = detailColumnRange(sheetName, "B");
-  return `COUNTIFS(${year},A${summaryRow},${month},B${summaryRow})`;
+function monthCountFormula(
+  dateCol: string,
+  sheetName: string,
+  year: number,
+  month: number
+): string {
+  const dates = detailColumnRange(sheetName, dateCol);
+  return `SUMPRODUCT((YEAR(${dates})=${year})*(MONTH(${dates})=${month})*(${dates}<>""))`;
 }
 
 const REVENUE_SHEET = "الإيرادات";
 const EXPENSE_SHEET = "المصروفات";
-const AMOUNT_COLUMN = "D";
+const AMOUNT_COLUMN = "C";
+const REVENUE_DATE_COLUMN = "E";
+const EXPENSE_DATE_COLUMN = "F";
 
 function addMonthlySummarySheet(
   workbook: ExcelJS.Workbook,
@@ -142,6 +150,7 @@ function addMonthlySummarySheet(
   options: {
     sheetName?: string;
     detailSheetName: string;
+    dateCol: string;
   }
 ) {
   const sheetName = options.sheetName ?? "المجموع الشهري";
@@ -167,12 +176,22 @@ function addMonthlySummarySheet(
       year: row.year,
       month: monthLabel(row.month),
     });
-    const r = excelRow.number;
     excelRow.getCell("count").value = {
-      formula: countifsFormula(options.detailSheetName, r),
+      formula: monthCountFormula(
+        options.dateCol,
+        options.detailSheetName,
+        row.year,
+        row.month
+      ),
     };
     excelRow.getCell("total").value = {
-      formula: sumifsFormula(AMOUNT_COLUMN, options.detailSheetName, r),
+      formula: monthSumFormula(
+        AMOUNT_COLUMN,
+        options.dateCol,
+        options.detailSheetName,
+        row.year,
+        row.month
+      ),
     };
     styleSumCells(excelRow, [...MONTHLY_SUM_COLUMNS]);
   }
@@ -198,31 +217,28 @@ function addRevenueDetailSheet(workbook: ExcelJS.Workbook, data: RevenueRow[]) {
   applyRtlSheet(sheet);
 
   sheet.columns = [
-    { header: "السنة", key: "year", width: 10 },
-    { header: "الشهر", key: "month", width: 14 },
+    { header: "رقم الوصل", key: "receiptNumber", width: 12 },
     { header: "الفئة", key: "category", width: 22 },
     { header: "المبلغ", key: "amount", width: 14 },
     { header: "الوصف", key: "description", width: 32 },
-    { header: "المصدر", key: "source", width: 18 },
     { header: "التاريخ", key: "date", width: 16 },
   ];
 
   rightAlignColumns(sheet);
-  styleHeader(sheet, 7);
+  styleHeader(sheet, 5);
 
   for (const row of sortRows(data)) {
     sheet.addRow({
-      year: row.year,
-      month: monthLabel(row.month),
+      receiptNumber: row.receiptNumber ?? "",
       category: sanitizeCell(row.category),
       amount: row.amount,
       description: sanitizeCell(row.description ?? ""),
-      source: sanitizeCell(row.source ?? ""),
-      date: row.date.toLocaleDateString("ar"),
+      date: row.date,
     });
   }
 
   sheet.getColumn("amount").numFmt = "#,##0.000";
+  sheet.getColumn("date").numFmt = "DD/MM/YYYY";
 }
 
 function addExpenseDetailSheet(workbook: ExcelJS.Workbook, data: ExpenseRow[]) {
@@ -230,8 +246,7 @@ function addExpenseDetailSheet(workbook: ExcelJS.Workbook, data: ExpenseRow[]) {
   applyRtlSheet(sheet);
 
   sheet.columns = [
-    { header: "السنة", key: "year", width: 10 },
-    { header: "الشهر", key: "month", width: 14 },
+    { header: "رقم الوصل", key: "receiptNumber", width: 12 },
     { header: "الفئة", key: "category", width: 22 },
     { header: "المبلغ", key: "amount", width: 14 },
     { header: "الوصف", key: "description", width: 32 },
@@ -240,21 +255,21 @@ function addExpenseDetailSheet(workbook: ExcelJS.Workbook, data: ExpenseRow[]) {
   ];
 
   rightAlignColumns(sheet);
-  styleHeader(sheet, 7);
+  styleHeader(sheet, 6);
 
   for (const row of sortRows(data)) {
     sheet.addRow({
-      year: row.year,
-      month: monthLabel(row.month),
+      receiptNumber: row.receiptNumber ?? "",
       category: sanitizeCell(row.category),
       amount: row.amount,
       description: sanitizeCell(row.description ?? ""),
       vendor: sanitizeCell(row.vendor ?? ""),
-      date: row.date.toLocaleDateString("ar"),
+      date: row.date,
     });
   }
 
   sheet.getColumn("amount").numFmt = "#,##0.000";
+  sheet.getColumn("date").numFmt = "DD/MM/YYYY";
 }
 
 function addCombinedTotalsSheet(
@@ -285,14 +300,25 @@ function addCombinedTotalsSheet(
       year: row.year,
       month: monthLabel(row.month),
     });
-    const r = excelRow.number;
     excelRow.getCell("revenue").value = {
-      formula: sumifsFormula(AMOUNT_COLUMN, REVENUE_SHEET, r),
+      formula: monthSumFormula(
+        AMOUNT_COLUMN,
+        REVENUE_DATE_COLUMN,
+        REVENUE_SHEET,
+        row.year,
+        row.month
+      ),
     };
     excelRow.getCell("expense").value = {
-      formula: sumifsFormula(AMOUNT_COLUMN, EXPENSE_SHEET, r),
+      formula: monthSumFormula(
+        AMOUNT_COLUMN,
+        EXPENSE_DATE_COLUMN,
+        EXPENSE_SHEET,
+        row.year,
+        row.month
+      ),
     };
-    excelRow.getCell("net").value = { formula: `C${r}-D${r}` };
+    excelRow.getCell("net").value = { formula: `C${excelRow.number}-D${excelRow.number}` };
     styleSumCells(excelRow, [...COMBINED_SUM_COLUMNS]);
   }
 
@@ -324,14 +350,20 @@ async function workbookToBuffer(workbook: ExcelJS.Workbook): Promise<Buffer> {
 export async function exportRevenuesToExcel(data: RevenueRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   addRevenueDetailSheet(workbook, data);
-  addMonthlySummarySheet(workbook, data, { detailSheetName: REVENUE_SHEET });
+  addMonthlySummarySheet(workbook, data, {
+    detailSheetName: REVENUE_SHEET,
+    dateCol: REVENUE_DATE_COLUMN,
+  });
   return workbookToBuffer(workbook);
 }
 
 export async function exportExpensesToExcel(data: ExpenseRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   addExpenseDetailSheet(workbook, data);
-  addMonthlySummarySheet(workbook, data, { detailSheetName: EXPENSE_SHEET });
+  addMonthlySummarySheet(workbook, data, {
+    detailSheetName: EXPENSE_SHEET,
+    dateCol: EXPENSE_DATE_COLUMN,
+  });
   return workbookToBuffer(workbook);
 }
 
@@ -344,11 +376,13 @@ export async function exportFinancialsToExcel(
   addMonthlySummarySheet(workbook, revenues, {
     sheetName: "مجموع الإيرادات",
     detailSheetName: REVENUE_SHEET,
+    dateCol: REVENUE_DATE_COLUMN,
   });
   addExpenseDetailSheet(workbook, expenses);
   addMonthlySummarySheet(workbook, expenses, {
     sheetName: "مجموع المصروفات",
     detailSheetName: EXPENSE_SHEET,
+    dateCol: EXPENSE_DATE_COLUMN,
   });
   addCombinedTotalsSheet(workbook, revenues, expenses);
   return workbookToBuffer(workbook);

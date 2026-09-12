@@ -88,6 +88,7 @@ export async function generateLedgerPdf(
 
   const transactions = await prisma.transaction.findMany({
     where: { studentId },
+    include: { receipt: { select: { receiptNumber: true } } },
     orderBy: { transactionDate: "asc" },
   });
 
@@ -97,10 +98,11 @@ export async function generateLedgerPdf(
     const isCredit = t.amount < 0;
     runningBalance = roundMoney(runningBalance + t.amount);
 
-    let receiptNumber: string | undefined;
-    if (t.referenceId?.startsWith("Receipt:")) {
-      receiptNumber = t.referenceId.replace("Receipt:", "");
-    }
+    const receiptNumber =
+      t.receipt?.receiptNumber?.toString() ??
+      (t.referenceId?.startsWith("Receipt:")
+        ? t.referenceId.replace("Receipt:", "")
+        : undefined);
 
     return {
       id: t.id,

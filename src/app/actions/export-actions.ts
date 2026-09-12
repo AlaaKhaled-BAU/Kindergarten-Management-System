@@ -61,15 +61,16 @@ function exportRevenueDescription(description: string | null): string | null {
 async function loadRevenues(filter: FinancialExportFilter) {
   const revenues = await prisma.revenue.findMany({
     where: { isActive: true, ...financialWhere(filter) },
-    orderBy: [{ year: "asc" }, { month: "asc" }, { recordDate: "asc" }],
+    include: { receipt: { select: { receiptNumber: true } } },
+    orderBy: [{ recordDate: "asc" }, { id: "asc" }],
   });
   return revenues.map((r) => ({
-    year: r.year,
-    month: r.month,
+    year: r.recordDate.getFullYear(),
+    month: r.recordDate.getMonth() + 1,
     category: r.category,
     amount: r.amount,
     description: exportRevenueDescription(r.description),
-    source: r.source,
+    receiptNumber: r.receipt?.receiptNumber ?? null,
     date: r.recordDate,
   }));
 }
@@ -80,8 +81,9 @@ async function loadExpenses(filter: FinancialExportFilter) {
     orderBy: [{ year: "asc" }, { month: "asc" }, { expenseDate: "asc" }],
   });
   return expenses.map((e) => ({
-    year: e.year,
-    month: e.month,
+    receiptNumber: e.referenceNumber,
+    year: e.expenseDate.getFullYear(),
+    month: e.expenseDate.getMonth() + 1,
     category: e.category,
     amount: e.amount,
     description: e.description,

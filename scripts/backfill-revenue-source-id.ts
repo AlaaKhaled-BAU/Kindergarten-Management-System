@@ -1,4 +1,6 @@
 /**
+ * Do not re-run; superseded by migration backfill of Transaction.receiptId.
+ *
  * One-off repair + backfill for revenue rows written before Revenue.sourceId
  * existed.
  *

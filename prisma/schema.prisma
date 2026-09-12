@@ -132,7 +132,9 @@ model Receipt {
   cancelDate       DateTime?
   cancelReason     String?
 
-  payment          Payment   @relation(fields: [paymentId], references: [id])
+  payment          Payment       @relation(fields: [paymentId], references: [id])
+  revenues         Revenue[]
+  ledgerTxs        Transaction[]
 
   @@index([paymentId])
 }
@@ -148,8 +150,10 @@ model Revenue {
   source      String?
   /** Receipt.id this row was derived from, for source Payment/Cancellation. */
   sourceId    Int?
+  receipt     Receipt? @relation(fields: [sourceId], references: [id])
   isActive    Boolean  @default(true)
 
+  @@unique([source, sourceId])
   @@index([year, month])
   @@index([source, sourceId])
 }
@@ -178,13 +182,16 @@ model Transaction {
   transactionDate DateTime @default(now())
   description     String?
   referenceId     String?
+  receiptId       Int?
   createdBy       String?
   createdAt       DateTime @default(now())
 
   student         Student  @relation(fields: [studentId], references: [id])
+  receipt         Receipt? @relation(fields: [receiptId], references: [id])
 
   @@index([studentId])
   @@index([studentId, transactionDate])
+  @@index([receiptId])
 }
 
 model Refund {

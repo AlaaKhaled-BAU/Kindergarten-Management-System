@@ -152,6 +152,7 @@ async function attemptProcessPayment(
         amount: -amount,
         transactionDate: new Date(input.paymentDate),
         description: "دفعة نقدية",
+        receiptId: receipt.id,
         referenceId: `Receipt:${nextReceiptNumber}`,
         createdBy: actor,
       },
@@ -204,6 +205,20 @@ export async function updateReceipt(input: UpdateReceiptInput) {
       throw new Error("لا يمكن تعديل إيصال ملغي");
     }
 
+    const transfer = await tx.transaction.findFirst({
+      where: {
+        studentId: receipt.payment.studentId,
+        transactionType: "BalanceTransferOut",
+        transactionDate: { gt: receipt.payment.paymentDate },
+      },
+      orderBy: { transactionDate: "asc" },
+    });
+    if (transfer) {
+      throw new Error(
+        "لا يمكن تعديل هذا الإيصال بعد ترحيل رصيد الطالب. استخدم الإلغاء ثم أصدر إيصالاً على السجل الحالي."
+      );
+    }
+
     const amount = roundMoney(input.amount);
     const paymentDate = new Date(input.paymentDate);
 
@@ -223,37 +238,32 @@ export async function updateReceipt(input: UpdateReceiptInput) {
       data: { amount, issueDate: paymentDate },
     });
 
-    await tx.transaction.updateMany({
-      where: {
-        transactionType: "Payment",
-        referenceId: `Receipt:${receipt.receiptNumber}`,
-      },
+    const paymentTx = await tx.transaction.findMany({
+      where: { receiptId: receipt.id, transactionType: "Payment" },
+    });
+    if (paymentTx.length !== 1) {
+      throw new Error("تعذر تحديد حركة الدفعة المرتبطة بهذا الإيصال");
+    }
+    await tx.transaction.update({
+      where: { id: paymentTx[0].id },
       data: { amount: -amount, transactionDate: paymentDate },
     });
 
-    const revenueData = {
-      amount,
-      recordDate: paymentDate,
-      year: paymentDate.getFullYear(),
-      month: paymentDate.getMonth() + 1,
-    };
-    const { count } = await tx.revenue.updateMany({
+    const revenues = await tx.revenue.findMany({
       where: { source: "Payment", sourceId: receipt.id, isActive: true },
-      data: revenueData,
     });
-    // Payments issued before revenue rows carried a sourceId can be missing
-    // one entirely; write it now rather than leave the reports short.
-    if (count === 0) {
-      await tx.revenue.create({
-        data: {
-          ...revenueData,
-          category: "رسوم دراسية",
-          description: `دفعة من الطالب: ${receipt.payment.student.firstName} ${receipt.payment.student.lastName}`,
-          source: "Payment",
-          sourceId: receipt.id,
-        },
-      });
+    if (revenues.length !== 1) {
+      throw new Error("تعذر تحديد سجل الإيراد المرتبط بهذا الإيصال");
     }
+    await tx.revenue.update({
+      where: { id: revenues[0].id },
+      data: {
+        amount,
+        recordDate: paymentDate,
+        year: paymentDate.getFullYear(),
+        month: paymentDate.getMonth() + 1,
+      },
+    });
 
     await logEvent("receipt_updated", {
       receiptId: receipt.id,
@@ -316,6 +326,7 @@ export async function cancelReceipt(input: CancelReceiptInput) {
         amount: receipt.amount,
         transactionDate: new Date(),
         description: `إلغاء إيصال رقم ${receipt.receiptNumber}: ${input.reason}`,
+        receiptId: receipt.id,
         referenceId: `Receipt:${receipt.receiptNumber}`,
         createdBy: actor,
       },
